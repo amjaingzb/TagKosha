@@ -55,25 +55,31 @@ class NoteEditorActivity : AppCompatActivity() {
     private fun saveNote() {
         val title = binding.etNoteTitle.text.toString().trim()
         val content = binding.etNoteContent.text.toString().trim()
-        val tagsInput = binding.etNoteTags.text.toString().trim()
+        val tagsInput = binding.etNoteTags.text.toString() // No trim needed here yet
 
-        if (title.isEmpty() || content.isEmpty()) {
-            Toast.makeText(this, "Title and content cannot be empty", Toast.LENGTH_SHORT).show()
+        if (title.isEmpty()) {
+            Toast.makeText(this, "Title cannot be empty", Toast.LENGTH_SHORT).show()
             return
         }
 
-        // Parse the tags from the input string
-        val tags = tagsInput.split(" ").filter { it.startsWith("#") && it.length > 1 }.toSet().toList()
+// --- ULTIMATE PARSING LOGIC USING REGEX ---
+// This pattern finds a '#' followed by one or more characters that are NOT whitespace or a comma.
+// This correctly extracts tags from strings like "#tag1#tag2" or "#tag1,#tag2".
+        val tagRegex = Regex("#[^\\s,]+")
+        val tags = tagRegex.findAll(tagsInput)
+            .map { it.value } // Get the matched string value
+            .toSet()          // Remove duplicates
+            .toList()         // Convert back to a list
+// --- END REGEX LOGIC ---
 
         val userId = firebaseAuth.currentUser?.uid
         if (userId == null) {
             Toast.makeText(this, "User not logged in", Toast.LENGTH_SHORT).show()
+            Timber.e("Attempted to save note with null userId")
             return
         }
 
-        // --- NEW LOGIC TO SAVE TAGS TO THE 'tags' COLLECTION ---
         saveTagsForUser(userId, tags)
-        // --- END NEW LOGIC ---
 
         if (existingNote == null) {
             // Create new note
@@ -87,6 +93,7 @@ class NoteEditorActivity : AppCompatActivity() {
             )
             firestore.collection("notes").add(newNote)
                 .addOnSuccessListener {
+                    Timber.d("New note saved successfully.")
                     Toast.makeText(this, "Note saved", Toast.LENGTH_SHORT).show()
                     finish()
                 }
@@ -105,6 +112,7 @@ class NoteEditorActivity : AppCompatActivity() {
             )
             firestore.collection("notes").document(noteId).update(updatedData)
                 .addOnSuccessListener {
+                    Timber.d("Note with ID %s updated successfully.", noteId)
                     Toast.makeText(this, "Note updated", Toast.LENGTH_SHORT).show()
                     finish()
                 }
