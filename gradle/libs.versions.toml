@@ -1,5 +1,5 @@
 [versions]
-agp = "8.13.0"
+agp = "8.13.0" # This seems to be a typo in your file, should likely be 8.3.0 or similar. Gradle will tell you if it's wrong.
 kotlin = "2.0.21"
 coreKtx = "1.17.0"
 junit = "4.13.2"
@@ -10,7 +10,10 @@ material = "1.13.0"
 activity = "1.11.0"
 constraintlayout = "2.2.1"
 googleGmsGoogleServices = "4.4.3"
-firebaseFirestore = "26.0.1"
+# REMOVED: firebaseFirestore version. The BOM will manage this.
+firebaseBom = "33.1.0"  # ADDED: The version for the Firebase Bill of Materials.
+timber = "5.0.1" # ADD THIS LINE
+
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -21,10 +24,15 @@ androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version
 material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 androidx-activity = { group = "androidx.activity", name = "activity", version.ref = "activity" }
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
-firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore", version.ref = "firebaseFirestore" }
+
+# --- EDITED AND ADDED FIREBASE LIBRARIES ---
+firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.ref = "firebaseBom" } # ADDED: The BOM library itself.
+firebase-auth = { group = "com.google.firebase", name = "firebase-auth-ktx" } # ADDED: Firebase Auth library (no version needed).
+firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore-ktx" } # CHANGED: Removed version and added -ktx for Kotlin extensions.
+timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" } # ADD THIS LINE
+
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
 google-gms-google-services = { id = "com.google.gms.google-services", version.ref = "googleGmsGoogleServices" }
-

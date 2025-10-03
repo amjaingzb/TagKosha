@@ -40,6 +40,9 @@
             android:name=".MainActivity"
             android:exported="false" />
 
+<activity
+            android:name=".NoteEditorActivity"
+            android:exported="false" />
     </application>
 
 </manifest>
