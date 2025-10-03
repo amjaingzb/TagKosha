@@ -9,6 +9,8 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.jbros.tagkosha.databinding.ActivityNoteEditorBinding
 import com.jbros.tagkosha.model.Note
 import java.util.Date
+import timber.log.Timber // Add this import
+
 
 class NoteEditorActivity : AppCompatActivity() {
 
@@ -89,7 +91,8 @@ class NoteEditorActivity : AppCompatActivity() {
                     finish()
                 }
                 .addOnFailureListener { e ->
-                    Toast.makeText(this, "Error saving note: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Timber.e(e, "Error saving new note")
+                    Toast.makeText(this, "Error saving note", Toast.LENGTH_SHORT).show()
                 }
         } else {
             // Update existing note
@@ -106,7 +109,8 @@ class NoteEditorActivity : AppCompatActivity() {
                     finish()
                 }
                 .addOnFailureListener { e ->
-                    Toast.makeText(this, "Error updating note: ${e.message}", Toast.LENGTH_SHORT).show()
+                    Timber.e(e, "Error updating note with ID: %s", noteId)
+                    Toast.makeText(this, "Error updating note", Toast.LENGTH_SHORT).show()
                 }
         }
     }

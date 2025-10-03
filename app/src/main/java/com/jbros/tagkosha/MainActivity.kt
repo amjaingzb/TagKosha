@@ -12,6 +12,7 @@ import com.jbros.tagkosha.adapter.NoteAdapter
 import com.jbros.tagkosha.auth.LoginActivity
 import com.jbros.tagkosha.databinding.ActivityMainBinding
 import com.jbros.tagkosha.model.Note
+import timber.log.Timber
 
 class MainActivity : AppCompatActivity() {
 
@@ -69,7 +70,8 @@ class MainActivity : AppCompatActivity() {
             .orderBy("updatedAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshots, error ->
                 if (error != null) {
-                    Toast.makeText(this, "Error loading notes: ${error.message}", Toast.LENGTH_SHORT).show()
+                    Timber.e(error, "Error loading notes") // This will print the full error to Logcat.
+                    Toast.makeText(this, "Error loading notes. Check Logcat.", Toast.LENGTH_LONG).show()
                     return@addSnapshotListener
                 }
 

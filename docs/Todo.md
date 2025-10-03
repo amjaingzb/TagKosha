@@ -1,3 +1,6 @@
+Bullet points 
+1. onSnapShot concept so that I am updating things in real time whenerevr there is any change in db from other device .. 
+2. Build content search
 
 ###TAG-CONVERSATION-2025-10-02 21:26:45
 Can i build query i firebase to search within values for some info ?
