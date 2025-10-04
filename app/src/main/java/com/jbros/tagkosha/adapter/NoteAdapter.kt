@@ -13,7 +13,6 @@ class NoteAdapter(
     private var notes: List<Note>,
     private val onNoteClicked: (Note) -> Unit,
     private val onActionClicked: (Note, Action) -> Unit,
-    // Add a new callback for when a tag chip is clicked
     private val onTagChipClicked: (String) -> Unit
 ) : RecyclerView.Adapter<NoteAdapter.NoteViewHolder>() {
 
@@ -42,9 +41,9 @@ class NoteAdapter(
             binding.tvNoteTitle.text = note.title
             binding.tvNoteContentPreview.text = note.content
             
-            // --- NEW CHIP CREATION LOGIC ---
-            binding.chipGroupTags.removeAllViews() // Clear old chips for recycling
+            binding.chipGroupTags.removeAllViews()
             note.tags.forEach { tag ->
+                // THE FIX IS HERE: Simplify creation. The ChipGroup now handles styling.
                 val chip = Chip(itemView.context)
                 chip.text = tag
                 chip.setOnClickListener {
@@ -52,14 +51,11 @@ class NoteAdapter(
                 }
                 binding.chipGroupTags.addView(chip)
             }
-            // --- END NEW LOGIC ---
 
-            // Handle single-tap to open the editor
             itemView.setOnClickListener {
                 onNoteClicked(note)
             }
 
-            // Handle long-press to show the context menu
             itemView.setOnLongClickListener {
                 val popup = PopupMenu(itemView.context, it)
                 popup.inflate(R.menu.note_context_menu)

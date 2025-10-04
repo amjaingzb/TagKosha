@@ -28,14 +28,15 @@
             android:ellipsize="end"
             android:textAppearance="?attr/textAppearanceBodyMedium"
             tools:text="This is a preview of the note content..." />
-
-        <!-- Replaced TextView with ChipGroup for interactive tags -->
+        
+        <!-- THE FIX IS HERE: Apply the style to the parent ChipGroup -->
         <com.google.android.material.chip.ChipGroup
             android:id="@+id/chip_group_tags"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            app:chipSpacingVertical="4dp"/>
+            android:layout_marginTop="1dp"
+            app:chipSpacingVertical="1dp"
+             />
 
     </LinearLayout>
 
