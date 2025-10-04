@@ -43,7 +43,7 @@ class NoteAdapter(
             
             binding.chipGroupTags.removeAllViews()
             note.tags.forEach { tag ->
-                // THE FIX IS HERE: Simplify creation. The ChipGroup now handles styling.
+                // The Theme now handles all styling. This is the simplest possible creation.
                 val chip = Chip(itemView.context)
                 chip.text = tag
                 chip.setOnClickListener {
@@ -68,7 +68,7 @@ class NoteAdapter(
                     }
                 }
                 popup.show()
-                true // Consume the long-press event
+                true
             }
         }
     }
