@@ -5,6 +5,7 @@ import android.os.Bundle
 import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.firebase.auth.FirebaseAuth
@@ -75,14 +76,59 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
     }
 
     private fun setupNoteRecyclerView() {
-        noteAdapter = NoteAdapter(notesList) { note ->
+        noteAdapter = NoteAdapter(
+            notes = notesList,
+            onNoteClicked = { note ->
+                // Single-tap action
             val intent = Intent(this, NoteEditorActivity::class.java)
             intent.putExtra("EXISTING_NOTE", note)
             startActivity(intent)
+            },
+            onActionClicked = { note, action ->
+                // Long-press context menu actions
+                when (action) {
+                    NoteAdapter.Action.DELETE -> showDeleteConfirmationDialog(note)
+                    NoteAdapter.Action.CLONE, NoteAdapter.Action.SHARE -> {
+                        Toast.makeText(this, "Feature not implemented yet", Toast.LENGTH_SHORT).show()
         }
+                }
+            }
+        )
         binding.recyclerViewNotes.adapter = noteAdapter
         binding.recyclerViewNotes.layoutManager = LinearLayoutManager(this)
     }
+
+    // --- Delete Logic (now in MainActivity) ---
+    private fun showDeleteConfirmationDialog(note: Note) {
+        AlertDialog.Builder(this)
+            .setTitle("Delete Note")
+            .setMessage("Are you sure you want to permanently delete this note?")
+            .setPositiveButton("Delete") { _, _ ->
+                deleteNote(note)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun deleteNote(note: Note) {
+        val noteId = note.id
+        if (noteId == null) {
+            Toast.makeText(this, "Error: Note ID not found.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        firestore.collection("notes").document(noteId)
+            .delete()
+            .addOnSuccessListener {
+                Toast.makeText(this, "Note deleted", Toast.LENGTH_SHORT).show()
+                // The listener will automatically update the UI
+            }
+            .addOnFailureListener { e ->
+                Timber.e(e, "Error deleting note")
+                Toast.makeText(this, "Error deleting note.", Toast.LENGTH_SHORT).show()
+            }
+    }
+
 
     private fun setupFilterRecyclerView() {
         activeFilterAdapter = ActiveFilterAdapter(activeFilters.toList()) { removedFilter ->
