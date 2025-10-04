@@ -22,4 +22,7 @@
         <item name="android:textColor">?attr/colorPrimary</item>
         <item name="rippleColor">?attr/colorControlHighlight</item>
     </style>
+    <style name="Theme.App.NoteTagContainer" parent="">
+        <item name="chipStyle">@style/Widget.App.Chip.TextLike</item>
+    </style>
 </resources>

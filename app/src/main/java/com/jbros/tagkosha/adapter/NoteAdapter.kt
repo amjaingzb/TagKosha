@@ -44,19 +44,20 @@ class NoteAdapter(
             
             binding.flexboxTags.removeAllViews()
             note.tags.forEach { tag ->
-                // Apply our custom text-like style programmatically
-                val chip = Chip(itemView.context, null, R.style.Widget_App_Chip_TextLike)
+                // The theme from the FlexboxLayout now automatically styles any Chip created within it.
+                // This is the simplest and most correct creation.
+                val chip = Chip(binding.flexboxTags.context)
                 chip.text = tag
                 chip.setOnClickListener {
                     onTagChipClicked(tag)
                 }
 
-                // Set margins for spacing since FlexboxLayout doesn't have chipSpacing
+                // We still need to set margins for Flexbox spacing
                 val params = FlexboxLayout.LayoutParams(
                     FlexboxLayout.LayoutParams.WRAP_CONTENT,
                     FlexboxLayout.LayoutParams.WRAP_CONTENT
                 )
-                params.setMargins(0, 0, 16, 8) // Right and bottom margin
+                params.setMargins(0, 0, 16, 8)
                 chip.layoutParams = params
 
                 binding.flexboxTags.addView(chip)
