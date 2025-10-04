@@ -7,6 +7,7 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import timber.log.Timber
+const val TAG_SANITY_LIMIT = 5000 // Define a constant for our limit
 
 class TagsViewModel : ViewModel() {
 
@@ -42,6 +43,14 @@ class TagsViewModel : ViewModel() {
 
             if (snapshots != null) {
                 val tagNames = snapshots.documents.mapNotNull { it.getString("tagName") }.sorted()
+                // --- THE SAFEGUARD CHECK ---
+                if (tagNames.size > TAG_SANITY_LIMIT) {
+                    // Log a severe warning. This is our "canary in the coal mine."
+                    Timber.e("CRITICAL: User has %d tags, exceeding the sanity limit of %d. Client-side performance may be affected.", tagNames.size, TAG_SANITY_LIMIT)
+                    // In a future, more advanced app, we could even send a non-fatal
+                    // crash report to Crashlytics here to alert us (the developers).
+                }
+                // --- END SAFEGUARD ---
                 _tags.postValue(tagNames) // Post the new list to observers
                 Timber.d("Tag list updated. Found %d tags.", tagNames.size)
             }
