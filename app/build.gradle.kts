@@ -61,6 +61,8 @@ dependencies {
     implementation(libs.timber) // ADD THIS LINE
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
     implementation(libs.androidx.fragment.ktx)
+    implementation(libs.google.flexbox)
+
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

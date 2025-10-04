@@ -4,6 +4,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.PopupMenu
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.flexbox.FlexboxLayout
 import com.google.android.material.chip.Chip
 import com.jbros.tagkosha.R
 import com.jbros.tagkosha.databinding.ItemNoteBinding
@@ -41,15 +42,24 @@ class NoteAdapter(
             binding.tvNoteTitle.text = note.title
             binding.tvNoteContentPreview.text = note.content
             
-            binding.chipGroupTags.removeAllViews()
+            binding.flexboxTags.removeAllViews()
             note.tags.forEach { tag ->
-                // The Theme now handles all styling. This is the simplest possible creation.
-                val chip = Chip(itemView.context)
+                // Apply our custom text-like style programmatically
+                val chip = Chip(itemView.context, null, R.style.Widget_App_Chip_TextLike)
                 chip.text = tag
                 chip.setOnClickListener {
                     onTagChipClicked(tag)
                 }
-                binding.chipGroupTags.addView(chip)
+
+                // Set margins for spacing since FlexboxLayout doesn't have chipSpacing
+                val params = FlexboxLayout.LayoutParams(
+                    FlexboxLayout.LayoutParams.WRAP_CONTENT,
+                    FlexboxLayout.LayoutParams.WRAP_CONTENT
+                )
+                params.setMargins(0, 0, 16, 8) // Right and bottom margin
+                chip.layoutParams = params
+
+                binding.flexboxTags.addView(chip)
             }
 
             itemView.setOnClickListener {

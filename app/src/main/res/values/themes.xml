@@ -8,7 +8,6 @@
 
     <style name="Theme.TagKosha" parent="Base.Theme.TagKosha">
         <!-- THIS IS THE GLOBAL OVERRIDE THAT IS PROVEN TO WORK. -->
-        <item name="chipStyle">@style/Widget.App.Chip.TextLike</item>
     </style>
 
     <!-- THIS IS THE CORRECT DEFINITION FOR OUR TEXT-LIKE CHIP STYLE -->

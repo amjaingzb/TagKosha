@@ -29,13 +29,14 @@
             android:textAppearance="?attr/textAppearanceBodyMedium"
             tools:text="This is a preview of the note content..." />
         
-        <com.google.android.material.chip.ChipGroup
-            android:id="@+id/chip_group_tags"
+        <!-- Replaced ChipGroup with FlexboxLayout for alignment control -->
+        <com.google.android.flexbox.FlexboxLayout
+            android:id="@+id/flexbox_tags"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            app:chipSpacingHorizontal="4dp"
-            app:chipSpacingVertical="0dp"/>
+            app:flexWrap="wrap"
+            app:justifyContent="flex_start" />
 
     </LinearLayout>
 
