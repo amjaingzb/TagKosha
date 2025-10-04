@@ -3,14 +3,14 @@ package com.jbros.tagkosha
 import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.jbros.tagkosha.databinding.ActivityNoteEditorBinding
 import com.jbros.tagkosha.model.Note
+import timber.log.Timber
 import java.util.Date
-import timber.log.Timber // Add this import
-
 
 class NoteEditorActivity : AppCompatActivity() {
 
@@ -27,7 +27,6 @@ class NoteEditorActivity : AppCompatActivity() {
         firestore = FirebaseFirestore.getInstance()
         firebaseAuth = FirebaseAuth.getInstance()
 
-        // Check if we are editing an existing note
         existingNote = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             intent.getSerializableExtra("EXISTING_NOTE", Note::class.java)
         } else {
@@ -35,6 +34,7 @@ class NoteEditorActivity : AppCompatActivity() {
             intent.getSerializableExtra("EXISTING_NOTE") as? Note
         }
 
+        setupToolbar()
         populateUI()
 
         binding.btnSaveNote.setOnClickListener {
@@ -42,6 +42,61 @@ class NoteEditorActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupToolbar() {
+        binding.topAppBarEditor.setNavigationOnClickListener {
+            finish()
+        }
+        binding.topAppBarEditor.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.itemId) {
+                R.id.menu_delete_note -> {
+                    showDeleteConfirmationDialog()
+                    true
+                }
+                R.id.menu_clone_note, R.id.menu_share_note -> {
+                    Toast.makeText(this, "Feature not implemented yet", Toast.LENGTH_SHORT).show()
+                    true
+                }
+                else -> false
+            }
+        }
+        // Hide action icons if it's a new note (user must save first)
+        val isExistingNote = existingNote != null
+        binding.topAppBarEditor.menu.findItem(R.id.menu_delete_note).isVisible = isExistingNote
+        binding.topAppBarEditor.menu.findItem(R.id.menu_clone_note).isVisible = isExistingNote
+        binding.topAppBarEditor.menu.findItem(R.id.menu_share_note).isVisible = isExistingNote
+    }
+
+    private fun showDeleteConfirmationDialog() {
+        AlertDialog.Builder(this)
+            .setTitle("Delete Note")
+            .setMessage("Are you sure you want to permanently delete this note?")
+            .setPositiveButton("Delete") { _, _ ->
+                deleteNote()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun deleteNote() {
+        val noteId = existingNote?.id
+        if (noteId == null) {
+            Toast.makeText(this, "Error: Note ID not found.", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        firestore.collection("notes").document(noteId)
+            .delete()
+            .addOnSuccessListener {
+                Toast.makeText(this, "Note deleted", Toast.LENGTH_SHORT).show()
+                finish()
+            }
+            .addOnFailureListener { e ->
+                Timber.e(e, "Error deleting note")
+                Toast.makeText(this, "Error deleting note.", Toast.LENGTH_SHORT).show()
+            }
+    }
+
+    // ... (rest of the file is unchanged) ...
     private fun populateUI() {
         existingNote?.let { note ->
             binding.etNoteTitle.setText(note.title)
@@ -50,9 +105,6 @@ class NoteEditorActivity : AppCompatActivity() {
         }
     }
 
-    // Replace the ENTIRE saveNote function with this new one.
-
-    // Replace the entire saveNote function with this one.
     private fun saveNote() {
         val title = binding.etNoteTitle.text.toString().trim()
         val content = binding.etNoteContent.text.toString().trim()
@@ -130,8 +182,6 @@ class NoteEditorActivity : AppCompatActivity() {
         }
     }
 
-    // --- ADD THIS NEW HELPER FUNCTION TO THE SAME FILE ---
-// Replace only this function.
     private fun saveTagsForUser(userId: String, tags: List<String>) {
         val tagsCollection = firestore.collection("tags")
         for (tagName in tags) {
@@ -139,17 +189,14 @@ class NoteEditorActivity : AppCompatActivity() {
             // Create a "safe" version of the tag name for the document ID by replacing '/' with '.'
             val safeTagName = tagName.substring(1).replace('/', '.')
             val docId = "${userId}_$safeTagName"
-            // --- END FIX ---
-
             val tagData = hashMapOf(
                 "userId" to userId,
                 "tagName" to tagName // Still save the ORIGINAL tag name with the '/' in the data
             )
-
-            // Use .set() with the safe docId to either create or overwrite the tag.
             tagsCollection.document(docId).set(tagData)
                 .addOnFailureListener { e ->
                     Timber.e(e, "Failed to save tag: %s", tagName)
                 }
         }
-    }}
+    }
+}
