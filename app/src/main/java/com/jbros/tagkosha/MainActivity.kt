@@ -82,27 +82,34 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
     private fun performNoteQuery() {
         val userId = firebaseAuth.currentUser?.uid ?: return
 
-        // Base query
         var query: Query = firestore.collection("notes").whereEqualTo("userId", userId)
 
-        // Add filters if any are active
         if (activeFilters.isNotEmpty()) {
             query = query.whereArrayContainsAny("tags", activeFilters.toList())
         }
 
-        // Always order by date, but this is less effective with array contains queries
         query.orderBy("updatedAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshots, error ->
                 if (error != null) {
-                    Timber.e(error, "Error loading notes")
-                    Toast.makeText(this, "Error loading notes. Check Logcat for index requirements.", Toast.LENGTH_LONG).show()
+                    Timber.e(error, "Error loading notes. Message: %s", error.message)
+                    Toast.makeText(this, "Error loading notes. Check Logcat.", Toast.LENGTH_LONG).show()
                     return@addSnapshotListener
                 }
 
                 if (snapshots != null) {
                     notesList.clear()
-                    val newNotes = snapshots.documents.mapNotNull { it.toObject(Note::class.java) }
-                    
+
+                    // --- THE FIX IS HERE ---
+                    // We must manually map the documents to our Note objects and
+                    // crucially, assign the document ID to our object's 'id' field.
+                    val newNotes = snapshots.documents.mapNotNull { doc ->
+                        val note = doc.toObject(Note::class.java)
+                        note?.apply {
+                            id = doc.id // This was the missing line!
+                        }
+                    }
+                    // --- END FIX ---
+
                     // Client-side filtering for "AND" logic
                     val filteredNotes = if (activeFilters.size > 1) {
                         newNotes.filter { it.tags.containsAll(activeFilters) }
