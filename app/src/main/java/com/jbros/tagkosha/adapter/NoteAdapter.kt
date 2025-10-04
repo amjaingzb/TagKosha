@@ -4,6 +4,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.PopupMenu
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.chip.Chip
 import com.jbros.tagkosha.R
 import com.jbros.tagkosha.databinding.ItemNoteBinding
 import com.jbros.tagkosha.model.Note
@@ -11,8 +12,9 @@ import com.jbros.tagkosha.model.Note
 class NoteAdapter(
     private var notes: List<Note>,
     private val onNoteClicked: (Note) -> Unit,
-    // Add a new callback for context menu actions
-    private val onActionClicked: (Note, Action) -> Unit
+    private val onActionClicked: (Note, Action) -> Unit,
+    // Add a new callback for when a tag chip is clicked
+    private val onTagChipClicked: (String) -> Unit
 ) : RecyclerView.Adapter<NoteAdapter.NoteViewHolder>() {
 
     enum class Action {
@@ -39,7 +41,18 @@ class NoteAdapter(
         fun bind(note: Note) {
             binding.tvNoteTitle.text = note.title
             binding.tvNoteContentPreview.text = note.content
-            binding.tvNoteTags.text = note.tags.joinToString(" ")
+            
+            // --- NEW CHIP CREATION LOGIC ---
+            binding.chipGroupTags.removeAllViews() // Clear old chips for recycling
+            note.tags.forEach { tag ->
+                val chip = Chip(itemView.context)
+                chip.text = tag
+                chip.setOnClickListener {
+                    onTagChipClicked(tag)
+                }
+                binding.chipGroupTags.addView(chip)
+            }
+            // --- END NEW LOGIC ---
 
             // Handle single-tap to open the editor
             itemView.setOnClickListener {
@@ -52,18 +65,9 @@ class NoteAdapter(
                 popup.inflate(R.menu.note_context_menu)
                 popup.setOnMenuItemClickListener { item ->
                     when (item.itemId) {
-                        R.id.context_delete -> {
-                            onActionClicked(note, Action.DELETE)
-                            true
-                        }
-                        R.id.context_clone -> {
-                            onActionClicked(note, Action.CLONE)
-                            true
-                        }
-                        R.id.context_share -> {
-                            onActionClicked(note, Action.SHARE)
-                            true
-                        }
+                        R.id.context_delete -> { onActionClicked(note, Action.DELETE); true }
+                        R.id.context_clone -> { onActionClicked(note, Action.CLONE); true }
+                        R.id.context_share -> { onActionClicked(note, Action.SHARE); true }
                         else -> false
                     }
                 }

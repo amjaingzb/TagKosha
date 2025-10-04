@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -31,9 +32,8 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
 
     private lateinit var activeFilterAdapter: ActiveFilterAdapter
     private val activeFilters = mutableSetOf<String>()
+
     private val allUserTags = mutableListOf<String>()
-
-
     // Getting the ViewModel is all we need to do. It will start its work automatically.
     // It will be created, start its listener, and survive configuration changes.
     private val tagsViewModel: TagsViewModel by viewModels()
@@ -49,8 +49,7 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         // The ViewModel will be created here and start listening.
         // We don't need to explicitly observe the tags here unless MainActivity
         // needs the list for another purpose, which it currently does not.
-        tagsViewModel
-
+        tagsViewModel // Initialize
         checkUser()
         setupNoteRecyclerView()
         setupFilterRecyclerView()
@@ -77,9 +76,9 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
             }
         }
     }
-
+    
     private fun observeTags() {
-        tagsViewModel.tags.observe(this) { tags ->
+        tagsViewModel.tags.observe(this, Observer { tags ->
             Timber.d("Tags updated from ViewModel. Count: %d", tags.size)
             allUserTags.clear()
             allUserTags.addAll(tags)
@@ -87,7 +86,7 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
             if (activeFilters.isNotEmpty()) {
                 performNoteQuery()
             }
-        }
+        })
     }
 
     private fun setupNoteRecyclerView() {
@@ -95,9 +94,9 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
             notes = notesList,
             onNoteClicked = { note ->
                 // Single-tap action
-            val intent = Intent(this, NoteEditorActivity::class.java)
-            intent.putExtra("EXISTING_NOTE", note)
-            startActivity(intent)
+                val intent = Intent(this, NoteEditorActivity::class.java)
+                intent.putExtra("EXISTING_NOTE", note)
+                startActivity(intent)
             },
             onActionClicked = { note, action ->
                 // Long-press context menu actions
@@ -105,45 +104,18 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
                     NoteAdapter.Action.DELETE -> showDeleteConfirmationDialog(note)
                     NoteAdapter.Action.CLONE, NoteAdapter.Action.SHARE -> {
                         Toast.makeText(this, "Feature not implemented yet", Toast.LENGTH_SHORT).show()
-        }
+                    }
                 }
+            },
+            // --- NEW CALLBACK IMPLEMENTATION ---
+            onTagChipClicked = { tag ->
+                // Simply reuse the existing onTagSelected logic
+                onTagSelected(tag)
             }
         )
         binding.recyclerViewNotes.adapter = noteAdapter
         binding.recyclerViewNotes.layoutManager = LinearLayoutManager(this)
     }
-
-    // --- Delete Logic (now in MainActivity) ---
-    private fun showDeleteConfirmationDialog(note: Note) {
-        AlertDialog.Builder(this)
-            .setTitle("Delete Note")
-            .setMessage("Are you sure you want to permanently delete this note?")
-            .setPositiveButton("Delete") { _, _ ->
-                deleteNote(note)
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
-
-    private fun deleteNote(note: Note) {
-        val noteId = note.id
-        if (noteId == null) {
-            Toast.makeText(this, "Error: Note ID not found.", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        firestore.collection("notes").document(noteId)
-            .delete()
-            .addOnSuccessListener {
-                Toast.makeText(this, "Note deleted", Toast.LENGTH_SHORT).show()
-                // The listener will automatically update the UI
-            }
-            .addOnFailureListener { e ->
-                Timber.e(e, "Error deleting note")
-                Toast.makeText(this, "Error deleting note.", Toast.LENGTH_SHORT).show()
-            }
-    }
-
 
     private fun setupFilterRecyclerView() {
         activeFilterAdapter = ActiveFilterAdapter(activeFilters.toList()) { removedFilter ->
@@ -152,25 +124,19 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         binding.recyclerViewActiveFilters.adapter = activeFilterAdapter
     }
 
-    // Replace the existing performNoteQuery function with this one
-    // Replace only this function in MainActivity.kt
     private fun performNoteQuery() {
         val userId = firebaseAuth.currentUser?.uid ?: return
         var query: Query = firestore.collection("notes").whereEqualTo("userId", userId)
 
         // First, get the complete list of tags to search for, including children.
         val expandedTags = getExpandedTags()
-        Timber.d("--- QUERY START ---")
-        Timber.d("[Step 1] Active Filters: %s", activeFilters)
-        Timber.d("[Step 2] Expanded Tags for Firestore: %s", expandedTags)
-
+        
         // Only apply the 'whereArrayContainsAny' filter if we have tags to search for.
         if (expandedTags.isNotEmpty()) {
             // Handle Firestore's limitation: the 'in' or 'array-contains-any' operator
             // can only handle a list of up to 10 items.
             if (expandedTags.size > 10) {
-                Toast.makeText(this, "Filter is too broad, results may be incomplete. Please be more specific.", Toast.LENGTH_LONG).show()
-                // We'll proceed with a truncated list to avoid a crash.
+                Toast.makeText(this, "Filter is too broad...", Toast.LENGTH_LONG).show()
                 query = query.whereArrayContainsAny("tags", expandedTags.take(10))
             } else {
                 query = query.whereArrayContainsAny("tags", expandedTags)
@@ -179,7 +145,6 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
 
         query.orderBy("updatedAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshots, error ->
-                Timber.d("--- LISTENER FIRED ---")
                 if (error != null) {
                     Timber.e(error, "Error loading notes. Message: %s", error.message)
                     Toast.makeText(this, "Error loading notes. Check Logcat.", Toast.LENGTH_LONG).show()
@@ -192,14 +157,11 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
                         val note = doc.toObject(Note::class.java)
                         note?.apply { id = doc.id }
                     }
-                    Timber.d("[Step 3] Notes received from Firestore: %d notes", newNotes.size)
-                    newNotes.forEach { Timber.d(" -> Received Note Title: %s", it.title) }
-
+                    
                     // Client-side filtering to enforce "AND" logic for multiple active filters.
                     // This is now more powerful to handle hierarchies correctly.
                     // We no longer trust the listener's result set to be perfectly pre-filtered during live updates.
                     val filteredNotes = if (activeFilters.isNotEmpty()) {
-                        Timber.d("[Step 4] Applying client-side hierarchical filter because activeFilters is not empty.")
                         newNotes.filter { note ->
                             // The 'all' check handles both single and multiple ("AND") filters correctly.
                             activeFilters.all { filter ->
@@ -207,20 +169,15 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
                             }
                         }
                     } else {
-                        Timber.d("[Step 4] No active filters. Showing all received notes.")
                         newNotes
                     }
-                    Timber.d("[Step 5] Final notes after client-side filter: %d notes", filteredNotes.size)
-                    filteredNotes.forEach { Timber.d(" -> Final Note Title: %s", it.title) }
 
                     notesList.addAll(filteredNotes)
                     noteAdapter.updateNotes(notesList)
-                    Timber.d("--- QUERY END ---")
                 }
             }
     }
 
-    // Add this entire new function
     private fun getExpandedTags(): List<String> {
         if (activeFilters.isEmpty()) {
             return emptyList()
@@ -266,15 +223,26 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
 
     // This function updates the UI for the active filter chips
     private fun updateFilterUI() {
-        if (activeFilters.isEmpty()) {
-            binding.recyclerViewActiveFilters.visibility = View.GONE
-        } else {
-            binding.recyclerViewActiveFilters.visibility = View.VISIBLE
-        }
-        // Re-create the adapter with the updated list to refresh the chips
+        binding.recyclerViewActiveFilters.visibility = if (activeFilters.isEmpty()) View.GONE else View.VISIBLE
         activeFilterAdapter = ActiveFilterAdapter(activeFilters.toList()) { removedFilter ->
             onTagRemoved(removedFilter)
         }
         binding.recyclerViewActiveFilters.adapter = activeFilterAdapter
+    }
+
+    private fun showDeleteConfirmationDialog(note: Note) {
+        AlertDialog.Builder(this)
+            .setTitle("Delete Note")
+            .setMessage("Are you sure you want to permanently delete this note?")
+            .setPositiveButton("Delete") { _, _ -> deleteNote(note) }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun deleteNote(note: Note) {
+        val noteId = note.id ?: return
+        firestore.collection("notes").document(noteId).delete()
+            .addOnSuccessListener { Toast.makeText(this, "Note deleted", Toast.LENGTH_SHORT).show() }
+            .addOnFailureListener { e -> Timber.e(e, "Error deleting note") }
     }
 }

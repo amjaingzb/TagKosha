@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -26,16 +27,16 @@
             android:maxLines="3"
             android:ellipsize="end"
             android:textAppearance="?attr/textAppearanceBodyMedium"
-            tools:text="This is a preview of the note content, it can be a few lines long..." />
+            tools:text="This is a preview of the note content..." />
 
-        <TextView
-            android:id="@+id/tv_note_tags"
-            android:layout_width="wrap_content"
+        <!-- Replaced TextView with ChipGroup for interactive tags -->
+        <com.google.android.material.chip.ChipGroup
+            android:id="@+id/chip_group_tags"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:textAppearance="?attr/textAppearanceLabelSmall"
-            android:textStyle="italic"
-            tools:text="#idea #project #meeting" />
+            app:chipSpacingVertical="4dp"/>
+
     </LinearLayout>
 
 </com.google.android.material.card.MaterialCardView>
