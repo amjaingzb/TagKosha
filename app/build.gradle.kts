@@ -59,6 +59,7 @@ dependencies {
     implementation(libs.firebase.firestore)
     // --- END FIREBASE DEPENDENCIES ---
     implementation(libs.timber) // ADD THIS LINE
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

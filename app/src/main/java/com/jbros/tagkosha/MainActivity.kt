@@ -4,7 +4,9 @@ import android.content.Intent
 import android.os.Bundle
 import android.view.View
 import android.widget.Toast
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -15,6 +17,7 @@ import com.jbros.tagkosha.auth.LoginActivity
 import com.jbros.tagkosha.databinding.ActivityMainBinding
 import com.jbros.tagkosha.model.Note
 import com.jbros.tagkosha.ui.TagExplorerBottomSheet
+import com.jbros.tagkosha.viewmodel.TagsViewModel
 import timber.log.Timber
 
 class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedListener {
@@ -28,6 +31,11 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
 
     private lateinit var activeFilterAdapter: ActiveFilterAdapter
     private val activeFilters = mutableSetOf<String>()
+    
+    private val allUserTags = mutableListOf<String>()
+    
+    // Get a reference to the ViewModel
+    private val tagsViewModel: TagsViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,6 +48,7 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         checkUser()
         setupNoteRecyclerView()
         setupFilterRecyclerView()
+        observeTags() // Start observing the tag data
         performNoteQuery()
 
         binding.fabAddNote.setOnClickListener {
@@ -49,7 +58,8 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         binding.topAppBar.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.menu_filter -> {
-                    TagExplorerBottomSheet().show(supportFragmentManager, TagExplorerBottomSheet.TAG)
+                    // Pass the cached tag list to the bottom sheet
+                    TagExplorerBottomSheet.newInstance(allUserTags).show(supportFragmentManager, TagExplorerBottomSheet.TAG)
                     true
                 }
                 R.id.menu_sign_out -> {
@@ -62,6 +72,16 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         }
     }
 
+    private fun observeTags() {
+        tagsViewModel.tags.observe(this, Observer { tags ->
+            Timber.d("Tags updated from ViewModel. Count: %d", tags.size)
+            allUserTags.clear()
+            allUserTags.addAll(tags)
+        })
+    }
+    
+    // ... (the rest of the MainActivity code is largely unchanged) ...
+    
     private fun setupNoteRecyclerView() {
         noteAdapter = NoteAdapter(notesList) { note ->
             val intent = Intent(this, NoteEditorActivity::class.java)
@@ -81,7 +101,6 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
 
     private fun performNoteQuery() {
         val userId = firebaseAuth.currentUser?.uid ?: return
-
         var query: Query = firestore.collection("notes").whereEqualTo("userId", userId)
 
         if (activeFilters.isNotEmpty()) {
@@ -98,19 +117,11 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
 
                 if (snapshots != null) {
                     notesList.clear()
-
-                    // --- THE FIX IS HERE ---
-                    // We must manually map the documents to our Note objects and
-                    // crucially, assign the document ID to our object's 'id' field.
                     val newNotes = snapshots.documents.mapNotNull { doc ->
                         val note = doc.toObject(Note::class.java)
-                        note?.apply {
-                            id = doc.id // This was the missing line!
-                        }
+                        note?.apply { id = doc.id }
                     }
-                    // --- END FIX ---
-
-                    // Client-side filtering for "AND" logic
+                    
                     val filteredNotes = if (activeFilters.size > 1) {
                         newNotes.filter { it.tags.containsAll(activeFilters) }
                     } else {
@@ -132,10 +143,8 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         }
     }
 
-    // --- Filter Management ---
-
     override fun onTagSelected(tag: String) {
-        if (activeFilters.add(tag)) { // 'add' returns true if the tag was not already present
+        if (activeFilters.add(tag)) {
             updateFilterUI()
             performNoteQuery()
         }
@@ -154,7 +163,6 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         } else {
             binding.recyclerViewActiveFilters.visibility = View.VISIBLE
         }
-        // Update the adapter with the new list
         activeFilterAdapter = ActiveFilterAdapter(activeFilters.toList()) { removedFilter ->
             onTagRemoved(removedFilter)
         }

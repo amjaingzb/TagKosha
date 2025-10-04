@@ -13,6 +13,7 @@ googleGmsGoogleServices = "4.4.3"
 # REMOVED: firebaseFirestore version. The BOM will manage this.
 firebaseBom = "33.1.0"  # ADDED: The version for the Firebase Bill of Materials.
 timber = "5.0.1" # ADD THIS LINE
+lifecycle = "2.8.2"
 
 
 [libraries]
@@ -30,6 +31,7 @@ firebase-bom = { group = "com.google.firebase", name = "firebase-bom", version.r
 firebase-auth = { group = "com.google.firebase", name = "firebase-auth-ktx" } # ADDED: Firebase Auth library (no version needed).
 firebase-firestore = { group = "com.google.firebase", name = "firebase-firestore-ktx" } # CHANGED: Removed version and added -ktx for Kotlin extensions.
 timber = { group = "com.jakewharton.timber", name = "timber", version.ref = "timber" } # ADD THIS LINE
+androidx-lifecycle-viewmodel-ktx = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-ktx", version.ref = "lifecycle" }
 
 
 [plugins]
