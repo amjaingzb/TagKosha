@@ -25,7 +25,8 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
     private var tagSelectedListener: OnTagSelectedListener? = null
 
     private val tagsViewModel: TagsViewModel by activityViewModels()
-    private var rootNodes = mutableListOf<TagNode>() // The full, parsed tree structure
+    private var rootNodes = mutableListOf<TagNode>()
+    private var flatTagList = mutableListOf<TagNode>() // For fast searching
 
     interface OnTagSelectedListener {
         fun onTagSelected(tag: String)
@@ -59,7 +60,7 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
             },
             onExpandClicked = { node ->
                 node.isExpanded = !node.isExpanded
-                updateDisplayList()
+                updateDisplayListFromTree()
             }
         )
         binding.recyclerViewTags.apply {
@@ -70,13 +71,16 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
 
     private fun observeTags() {
         tagsViewModel.tags.observe(viewLifecycleOwner, Observer { tags ->
-            Timber.d("Live update received. Reparsing tag tree. Tag count: %d", tags.size)
-            rootNodes = parseFlatListToTreeNodes(tags)
-            updateDisplayList()
+            Timber.d("Reparsing tag tree. Tag count: %d", tags.size)
+            rootNodes = parseFlatListToTree(tags)
+            flatTagList = createFlatListFromTree(rootNodes)
+            // Show the initial tree view
+            updateDisplayListFromTree()
         })
     }
     
-    private fun updateDisplayList() {
+    // Generates the visible list from the tree structure
+    private fun updateDisplayListFromTree() {
         val displayList = mutableListOf<TagNode>()
         fun addNodesToList(nodes: List<TagNode>) {
             for (node in nodes) {
@@ -100,48 +104,55 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
         })
     }
 
+    // --- REVISED AND CORRECTED SEARCH LOGIC ---
     private fun filterTags(query: String?) {
         if (query.isNullOrBlank()) {
-            updateDisplayList() // If search is cleared, show the tree view again
-            return
-        }
-
-        val searchResults = mutableListOf<TagNode>()
-        val lowerCaseQuery = query.lowercase()
-
-        fun findMatches(nodes: List<TagNode>) {
-            for (node in nodes) {
-                if (node.fullName.lowercase().contains(lowerCaseQuery)) {
-                    searchResults.add(node)
-                }
-                findMatches(node.children) // Recursively search children
+            // If search is cleared, show the tree view again
+            updateDisplayListFromTree()
+        } else {
+            // Otherwise, show a flat list of search results
+            val lowerCaseQuery = query.lowercase()
+            val searchResults = flatTagList.filter { 
+                it.fullName.lowercase().contains(lowerCaseQuery) 
             }
+            tagTreeAdapter.submitList(searchResults, isSearch = true)
         }
-        findMatches(rootNodes)
-        tagTreeAdapter.submitList(searchResults, isSearch = true)
     }
     
-    // --- The Parser Logic ---
-    private fun parseFlatListToTreeNodes(tags: List<String>): MutableList<TagNode> {
+    // --- PARSER LOGIC (UNCHANGED, BUT RENAMED FOR CLARITY) ---
+    private fun parseFlatListToTree(tags: List<String>): MutableList<TagNode> {
         val nodeMap = mutableMapOf<String, TagNode>()
         val roots = mutableListOf<TagNode>()
 
         for (tag in tags.sorted()) {
             val parts = tag.removePrefix("#").split('/')
-            val level = parts.size - 1
-            val displayName = parts.last()
-            
-            val node = TagNode(fullName = tag, displayName = displayName, level = level)
-
-            if (level == 0) {
+            val node = TagNode(
+                fullName = tag,
+                displayName = parts.last(),
+                level = parts.size - 1
+            )
+            nodeMap[tag] = node
+            if (node.level == 0) {
                 roots.add(node)
             } else {
                 val parentFullName = "#" + parts.dropLast(1).joinToString("/")
                 nodeMap[parentFullName]?.children?.add(node)
             }
-            nodeMap[tag] = node
         }
         return roots
+    }
+    
+    // New helper to create a flat list for searching
+    private fun createFlatListFromTree(nodes: List<TagNode>): MutableList<TagNode> {
+        val flatList = mutableListOf<TagNode>()
+        fun addToList(nodesToAdd: List<TagNode>) {
+            for (node in nodesToAdd) {
+                flatList.add(node)
+                addToList(node.children)
+            }
+        }
+        addToList(nodes)
+        return flatList
     }
 
     override fun onDestroyView() {

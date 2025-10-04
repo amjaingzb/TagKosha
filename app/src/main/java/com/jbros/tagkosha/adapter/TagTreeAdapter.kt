@@ -8,8 +8,8 @@ import com.jbros.tagkosha.databinding.ItemTagTreeBinding
 import com.jbros.tagkosha.model.TagNode
 
 class TagTreeAdapter(
-    private val onTagClicked: (TagNode) -> Unit, // Callback for when a tag text is clicked
-    private val onExpandClicked: (TagNode) -> Unit // Callback for when an expand arrow is clicked
+    private val onTagClicked: (TagNode) -> Unit,
+    private val onExpandClicked: (TagNode) -> Unit
 ) : RecyclerView.Adapter<TagTreeAdapter.TagViewHolder>() {
 
     private var displayList: List<TagNode> = emptyList()
@@ -36,24 +36,27 @@ class TagTreeAdapter(
         fun bind(node: TagNode) {
             binding.tvTagName.text = node.displayName
 
-            // Calculate indentation based on level
-            val indentation = node.level * 50 // 50 pixels per level
-            binding.root.setPadding(indentation + 48, binding.root.paddingTop, binding.root.paddingRight, binding.root.paddingBottom)
+            val indentation = node.level * 50
+            binding.root.setPadding(indentation + 16, binding.root.paddingTop, binding.root.paddingRight, binding.root.paddingBottom)
 
-            // Handle visibility and rotation of the expand arrow
+            // --- REVISED VISIBILITY AND ROTATION LOGIC ---
             if (isSearchMode || node.children.isEmpty()) {
+                // In search mode or if it's a leaf node, hide the arrow but keep the space
                 binding.ivExpandArrow.visibility = View.INVISIBLE
+                binding.ivExpandArrow.setOnClickListener(null) // Remove click listener
             } else {
+                // It's a parent node in browse mode, show the arrow
                 binding.ivExpandArrow.visibility = View.VISIBLE
-                binding.ivExpandArrow.rotation = if (node.isExpanded) 0f else -90f
+                // Animate the rotation
+                binding.ivExpandArrow.animate().rotation(if (node.isExpanded) 90f else 0f).setDuration(200).start()
+                binding.ivExpandArrow.setOnClickListener {
+                    onExpandClicked(node)
+                }
             }
 
-            // Set click listeners
-            binding.tvTagName.setOnClickListener {
+            // The whole item is always clickable to select the tag
+            itemView.setOnClickListener {
                 onTagClicked(node)
-            }
-            binding.ivExpandArrow.setOnClickListener {
-                onExpandClicked(node)
             }
         }
     }
