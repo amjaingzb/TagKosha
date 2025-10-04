@@ -1,6 +1,13 @@
 Bullet points 
 1. onSnapShot concept so that I am updating things in real time whenerevr there is any change in db from other device .. 
-2. Build content search
+2. Build content search (or may be not) . refer point 3 or securityConcern
+3. securityConcern : encode contents in app . only keep tags decoded outside the app so firebase or algoia has reduced risk of my data 
+4. Show available tags like ankit was showing with theor count in bracket
+5. desktop app 
+6. free tier users - 1 device - sqlite - personal space to backup db .. or maybe tagKoshaLite.. or license based
+7. implement storage limits - display free %age remaining
+8. Grammar display as a tool tip and some detailed help also ...
+
 
 ###TAG-CONVERSATION-2025-10-02 21:26:45
 Can i build query i firebase to search within values for some info ?

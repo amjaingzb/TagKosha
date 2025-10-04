@@ -62,14 +62,19 @@ class NoteEditorActivity : AppCompatActivity() {
             return
         }
 
+        Timber.d("--- Tag Parsing ---")
+        Timber.d("Raw Input String: '%s'", tagsInput)
 // --- ULTIMATE PARSING LOGIC USING REGEX ---
 // This pattern finds a '#' followed by one or more characters that are NOT whitespace or a comma.
 // This correctly extracts tags from strings like "#tag1#tag2" or "#tag1,#tag2".
-        val tagRegex = Regex("#[^\\s,]+")
+        val tagRegex = Regex("#[\\w-]+")
         val tags = tagRegex.findAll(tagsInput)
             .map { it.value } // Get the matched string value
             .toSet()          // Remove duplicates
             .toList()         // Convert back to a list
+
+        Timber.d("Parsed Output List: %s", tags.toString())
+        Timber.d("---------------------")
 // --- END REGEX LOGIC ---
 
         val userId = firebaseAuth.currentUser?.uid
