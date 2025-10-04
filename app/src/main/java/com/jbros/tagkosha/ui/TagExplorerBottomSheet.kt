@@ -5,8 +5,11 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.jbros.tagkosha.adapter.TagAdapter
 import com.jbros.tagkosha.databinding.BottomSheetTagExplorerBinding
 import timber.log.Timber
@@ -19,14 +22,16 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
     private lateinit var tagAdapter: TagAdapter
     private var tagSelectedListener: OnTagSelectedListener? = null
 
-    // Interface to communicate back to the MainActivity
+    private lateinit var firestore: FirebaseFirestore
+    private lateinit var firebaseAuth: FirebaseAuth
+    private val allTags = mutableListOf<String>()
+
     interface OnTagSelectedListener {
         fun onTagSelected(tag: String)
     }
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
-        // Attach the listener from the hosting activity (MainActivity)
         tagSelectedListener = context as? OnTagSelectedListener
         if (tagSelectedListener == null) {
             throw ClassCastException("$context must implement OnTagSelectedListener")
@@ -35,28 +40,48 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = BottomSheetTagExplorerBinding.inflate(inflater, container, false)
+        firestore = FirebaseFirestore.getInstance()
+        firebaseAuth = FirebaseAuth.getInstance()
         return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupRecyclerView()
+        fetchTags()
     }
 
     private fun setupRecyclerView() {
-        // --- DUMMY DATA FOR NOW ---
-        val dummyTags = listOf("#work", "#personal", "#shopping", "#ideas", "#project-alpha", "#work/project-beta")
-
-        tagAdapter = TagAdapter(dummyTags) { selectedTag ->
+        tagAdapter = TagAdapter(allTags) { selectedTag ->
             Timber.d("Tag clicked: %s", selectedTag)
             tagSelectedListener?.onTagSelected(selectedTag)
-            dismiss() // Close the bottom sheet after selection
+            dismiss()
         }
         binding.recyclerViewTags.apply {
             layoutManager = LinearLayoutManager(context)
             adapter = tagAdapter
         }
     }
+
+    private fun fetchTags() {
+        val userId = firebaseAuth.currentUser?.uid ?: return
+
+        firestore.collection("tags")
+            .whereEqualTo("userId", userId)
+            .get()
+            .addOnSuccessListener { documents ->
+                allTags.clear()
+                val tagNames = documents.mapNotNull { it.getString("tagName") }.sorted()
+                allTags.addAll(tagNames)
+                tagAdapter.notifyDataSetChanged()
+                Timber.d("Successfully fetched %d tags", allTags.size)
+            }
+            .addOnFailureListener { exception ->
+                Timber.e(exception, "Error getting tags")
+                Toast.makeText(context, "Failed to load tags.", Toast.LENGTH_SHORT).show()
+            }
+    }
+
 
     override fun onDestroyView() {
         super.onDestroyView()

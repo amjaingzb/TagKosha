@@ -2,12 +2,14 @@ package com.jbros.tagkosha
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.jbros.tagkosha.adapter.ActiveFilterAdapter
 import com.jbros.tagkosha.adapter.NoteAdapter
 import com.jbros.tagkosha.auth.LoginActivity
 import com.jbros.tagkosha.databinding.ActivityMainBinding
@@ -15,14 +17,17 @@ import com.jbros.tagkosha.model.Note
 import com.jbros.tagkosha.ui.TagExplorerBottomSheet
 import timber.log.Timber
 
-// Implement the listener interface from the bottom sheet
 class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedListener {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var firebaseAuth: FirebaseAuth
     private lateinit var firestore: FirebaseFirestore
+
     private lateinit var noteAdapter: NoteAdapter
     private val notesList = mutableListOf<Note>()
+
+    private lateinit var activeFilterAdapter: ActiveFilterAdapter
+    private val activeFilters = mutableSetOf<String>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -33,8 +38,9 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         firestore = FirebaseFirestore.getInstance()
 
         checkUser()
-        setupRecyclerView()
-        loadNotes()
+        setupNoteRecyclerView()
+        setupFilterRecyclerView()
+        performNoteQuery()
 
         binding.fabAddNote.setOnClickListener {
             startActivity(Intent(this, NoteEditorActivity::class.java))
@@ -43,7 +49,6 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         binding.topAppBar.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.menu_filter -> {
-                    // Show the Tag Explorer Bottom Sheet
                     TagExplorerBottomSheet().show(supportFragmentManager, TagExplorerBottomSheet.TAG)
                     true
                 }
@@ -57,7 +62,7 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         }
     }
 
-    private fun setupRecyclerView() {
+    private fun setupNoteRecyclerView() {
         noteAdapter = NoteAdapter(notesList) { note ->
             val intent = Intent(this, NoteEditorActivity::class.java)
             intent.putExtra("EXISTING_NOTE", note)
@@ -67,28 +72,45 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         binding.recyclerViewNotes.layoutManager = LinearLayoutManager(this)
     }
 
-    private fun loadNotes() {
+    private fun setupFilterRecyclerView() {
+        activeFilterAdapter = ActiveFilterAdapter(activeFilters.toList()) { removedFilter ->
+            onTagRemoved(removedFilter)
+        }
+        binding.recyclerViewActiveFilters.adapter = activeFilterAdapter
+    }
+
+    private fun performNoteQuery() {
         val userId = firebaseAuth.currentUser?.uid ?: return
 
-        firestore.collection("notes")
-            .whereEqualTo("userId", userId)
-            .orderBy("updatedAt", Query.Direction.DESCENDING)
+        // Base query
+        var query: Query = firestore.collection("notes").whereEqualTo("userId", userId)
+
+        // Add filters if any are active
+        if (activeFilters.isNotEmpty()) {
+            query = query.whereArrayContainsAny("tags", activeFilters.toList())
+        }
+
+        // Always order by date, but this is less effective with array contains queries
+        query.orderBy("updatedAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshots, error ->
                 if (error != null) {
                     Timber.e(error, "Error loading notes")
-                    Toast.makeText(this, "Error loading notes. Check Logcat.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "Error loading notes. Check Logcat for index requirements.", Toast.LENGTH_LONG).show()
                     return@addSnapshotListener
                 }
 
                 if (snapshots != null) {
                     notesList.clear()
-                    for (document in snapshots.documents) {
-                        val note = document.toObject(Note::class.java)
-                        if (note != null) {
-                            note.id = document.id
-                            notesList.add(note)
-                        }
+                    val newNotes = snapshots.documents.mapNotNull { it.toObject(Note::class.java) }
+                    
+                    // Client-side filtering for "AND" logic
+                    val filteredNotes = if (activeFilters.size > 1) {
+                        newNotes.filter { it.tags.containsAll(activeFilters) }
+                    } else {
+                        newNotes
                     }
+
+                    notesList.addAll(filteredNotes)
                     noteAdapter.updateNotes(notesList)
                 }
             }
@@ -103,10 +125,32 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         }
     }
 
-    // This function is required by the OnTagSelectedListener interface
+    // --- Filter Management ---
+
     override fun onTagSelected(tag: String) {
-        Timber.d("Tag selected from Bottom Sheet: %s", tag)
-        Toast.makeText(this, "Selected: $tag", Toast.LENGTH_SHORT).show()
-        // We will add filter logic here in the next step
+        if (activeFilters.add(tag)) { // 'add' returns true if the tag was not already present
+            updateFilterUI()
+            performNoteQuery()
+        }
+    }
+
+    private fun onTagRemoved(tag: String) {
+        if (activeFilters.remove(tag)) {
+            updateFilterUI()
+            performNoteQuery()
+        }
+    }
+
+    private fun updateFilterUI() {
+        if (activeFilters.isEmpty()) {
+            binding.recyclerViewActiveFilters.visibility = View.GONE
+        } else {
+            binding.recyclerViewActiveFilters.visibility = View.VISIBLE
+        }
+        // Update the adapter with the new list
+        activeFilterAdapter = ActiveFilterAdapter(activeFilters.toList()) { removedFilter ->
+            onTagRemoved(removedFilter)
+        }
+        binding.recyclerViewActiveFilters.adapter = activeFilterAdapter
     }
 }

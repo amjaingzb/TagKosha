@@ -11,6 +11,7 @@ class TagKoshaApp : Application() {
 
         if (BuildConfig.DEBUG) {
             Timber.plant(TagKoshaDebugTree())
+            Timber.d("--- TagKosha App has started and Timber is PLANTED! ---")
         } else {
             // Future-proof: For release builds, you can plant a tree that reports to a crash service.
             // Timber.plant(CrashReportingTree())
