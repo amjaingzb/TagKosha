@@ -31,6 +31,8 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
 
     private lateinit var activeFilterAdapter: ActiveFilterAdapter
     private val activeFilters = mutableSetOf<String>()
+    private val allUserTags = mutableListOf<String>()
+
 
     // Getting the ViewModel is all we need to do. It will start its work automatically.
     // It will be created, start its listener, and survive configuration changes.
@@ -52,6 +54,7 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         checkUser()
         setupNoteRecyclerView()
         setupFilterRecyclerView()
+        observeTags()
         performNoteQuery()
 
         binding.fabAddNote.setOnClickListener {
@@ -71,6 +74,18 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
                     true
                 }
                 else -> false
+            }
+        }
+    }
+
+    private fun observeTags() {
+        tagsViewModel.tags.observe(this) { tags ->
+            Timber.d("Tags updated from ViewModel. Count: %d", tags.size)
+            allUserTags.clear()
+            allUserTags.addAll(tags)
+            // If filters are active, re-run the query because the available tags might have changed
+            if (activeFilters.isNotEmpty()) {
+                performNoteQuery()
             }
         }
     }
@@ -137,12 +152,27 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         binding.recyclerViewActiveFilters.adapter = activeFilterAdapter
     }
 
+    // Replace the existing performNoteQuery function with this one
     private fun performNoteQuery() {
         val userId = firebaseAuth.currentUser?.uid ?: return
         var query: Query = firestore.collection("notes").whereEqualTo("userId", userId)
 
-        if (activeFilters.isNotEmpty()) {
-            query = query.whereArrayContainsAny("tags", activeFilters.toList())
+        // First, get the complete list of tags to search for, including children.
+        val expandedTags = getExpandedTags()
+        Timber.d("Active filters (user selection): %s", activeFilters)
+        Timber.d("Expanded filters (for query): %s", expandedTags)
+
+        // Only apply the 'whereArrayContainsAny' filter if we have tags to search for.
+        if (expandedTags.isNotEmpty()) {
+            // Handle Firestore's limitation: the 'in' or 'array-contains-any' operator
+            // can only handle a list of up to 10 items.
+            if (expandedTags.size > 10) {
+                Toast.makeText(this, "Filter is too broad, results may be incomplete. Please be more specific.", Toast.LENGTH_LONG).show()
+                // We'll proceed with a truncated list to avoid a crash.
+                query = query.whereArrayContainsAny("tags", expandedTags.take(10))
+            } else {
+                query = query.whereArrayContainsAny("tags", expandedTags)
+            }
         }
 
         query.orderBy("updatedAt", Query.Direction.DESCENDING)
@@ -157,13 +187,18 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
                     notesList.clear()
                     val newNotes = snapshots.documents.mapNotNull { doc ->
                         val note = doc.toObject(Note::class.java)
-                        // This is the critical line to ensure editing works
                         note?.apply { id = doc.id }
                     }
 
-                    // Client-side filtering to enforce "AND" logic when multiple filters are selected
+                    // Client-side filtering to enforce "AND" logic for multiple active filters.
+                    // This is now more powerful to handle hierarchies correctly.
                     val filteredNotes = if (activeFilters.size > 1) {
-                        newNotes.filter { it.tags.containsAll(activeFilters) }
+                        newNotes.filter { note ->
+                            // A note must satisfy the hierarchy of EACH active filter.
+                            activeFilters.all { filter ->
+                                note.tags.any { it.startsWith(filter) }
+                            }
+                        }
                     } else {
                         newNotes
                     }
@@ -172,6 +207,21 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
                     noteAdapter.updateNotes(notesList)
                 }
             }
+    }
+
+    // Add this entire new function
+    private fun getExpandedTags(): List<String> {
+        if (activeFilters.isEmpty()) {
+            return emptyList()
+        }
+        // Use a Set to automatically handle duplicates if a parent and child are both selected
+        val expanded = mutableSetOf<String>()
+        activeFilters.forEach { filterTag ->
+            // Find all tags in our master list that start with the selected filter tag
+            val matchingTags = allUserTags.filter { it.startsWith(filterTag) }
+            expanded.addAll(matchingTags)
+        }
+        return expanded.toList()
     }
 
     private fun checkUser() {
