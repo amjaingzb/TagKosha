@@ -6,7 +6,6 @@ import android.view.View
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -31,10 +30,9 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
 
     private lateinit var activeFilterAdapter: ActiveFilterAdapter
     private val activeFilters = mutableSetOf<String>()
-    
-    private val allUserTags = mutableListOf<String>()
-    
-    // Get a reference to the ViewModel
+
+    // Getting the ViewModel is all we need to do. It will start its work automatically.
+    // It will be created, start its listener, and survive configuration changes.
     private val tagsViewModel: TagsViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -45,10 +43,14 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         firebaseAuth = FirebaseAuth.getInstance()
         firestore = FirebaseFirestore.getInstance()
 
+        // The ViewModel will be created here and start listening.
+        // We don't need to explicitly observe the tags here unless MainActivity
+        // needs the list for another purpose, which it currently does not.
+        tagsViewModel
+
         checkUser()
         setupNoteRecyclerView()
         setupFilterRecyclerView()
-        observeTags() // Start observing the tag data
         performNoteQuery()
 
         binding.fabAddNote.setOnClickListener {
@@ -58,8 +60,8 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         binding.topAppBar.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
                 R.id.menu_filter -> {
-                    // Pass the cached tag list to the bottom sheet
-                    TagExplorerBottomSheet.newInstance(allUserTags).show(supportFragmentManager, TagExplorerBottomSheet.TAG)
+                    // No need to pass data anymore. The sheet will get it from the ViewModel.
+                    TagExplorerBottomSheet().show(supportFragmentManager, TagExplorerBottomSheet.TAG)
                     true
                 }
                 R.id.menu_sign_out -> {
@@ -72,16 +74,6 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         }
     }
 
-    private fun observeTags() {
-        tagsViewModel.tags.observe(this, Observer { tags ->
-            Timber.d("Tags updated from ViewModel. Count: %d", tags.size)
-            allUserTags.clear()
-            allUserTags.addAll(tags)
-        })
-    }
-    
-    // ... (the rest of the MainActivity code is largely unchanged) ...
-    
     private fun setupNoteRecyclerView() {
         noteAdapter = NoteAdapter(notesList) { note ->
             val intent = Intent(this, NoteEditorActivity::class.java)
@@ -119,9 +111,11 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
                     notesList.clear()
                     val newNotes = snapshots.documents.mapNotNull { doc ->
                         val note = doc.toObject(Note::class.java)
+                        // This is the critical line to ensure editing works
                         note?.apply { id = doc.id }
                     }
-                    
+
+                    // Client-side filtering to enforce "AND" logic when multiple filters are selected
                     val filteredNotes = if (activeFilters.size > 1) {
                         newNotes.filter { it.tags.containsAll(activeFilters) }
                     } else {
@@ -143,13 +137,17 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         }
     }
 
+    // --- Filter Management Logic ---
+
+    // This is called from the TagExplorerBottomSheet when a tag is selected
     override fun onTagSelected(tag: String) {
-        if (activeFilters.add(tag)) {
+        if (activeFilters.add(tag)) { // .add() returns true if the set was changed
             updateFilterUI()
             performNoteQuery()
         }
     }
 
+    // This is called from the ActiveFilterAdapter when a chip's close icon is clicked
     private fun onTagRemoved(tag: String) {
         if (activeFilters.remove(tag)) {
             updateFilterUI()
@@ -157,12 +155,14 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         }
     }
 
+    // This function updates the UI for the active filter chips
     private fun updateFilterUI() {
         if (activeFilters.isEmpty()) {
             binding.recyclerViewActiveFilters.visibility = View.GONE
         } else {
             binding.recyclerViewActiveFilters.visibility = View.VISIBLE
         }
+        // Re-create the adapter with the updated list to refresh the chips
         activeFilterAdapter = ActiveFilterAdapter(activeFilters.toList()) { removedFilter ->
             onTagRemoved(removedFilter)
         }

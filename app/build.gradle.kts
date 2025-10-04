@@ -60,6 +60,7 @@ dependencies {
     // --- END FIREBASE DEPENDENCIES ---
     implementation(libs.timber) // ADD THIS LINE
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.fragment.ktx)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

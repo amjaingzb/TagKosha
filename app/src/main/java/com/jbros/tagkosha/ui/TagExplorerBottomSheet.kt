@@ -6,12 +6,14 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.widget.SearchView
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.jbros.tagkosha.adapter.TagAdapter
 import com.jbros.tagkosha.databinding.BottomSheetTagExplorerBinding
+import com.jbros.tagkosha.viewmodel.TagsViewModel
 import timber.log.Timber
-import java.io.Serializable
 
 class TagExplorerBottomSheet : BottomSheetDialogFragment() {
 
@@ -20,7 +22,10 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
 
     private lateinit var tagAdapter: TagAdapter
     private var tagSelectedListener: OnTagSelectedListener? = null
-    private var allTags: List<String> = emptyList()
+
+    // Get a reference to the Activity's ViewModel
+    private val tagsViewModel: TagsViewModel by activityViewModels()
+    private var allTags = listOf<String>() // Holds the current full list of tags
 
     interface OnTagSelectedListener {
         fun onTagSelected(tag: String)
@@ -34,13 +39,6 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
         }
     }
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        arguments?.let {
-            allTags = it.getStringArrayList(ARG_TAGS) ?: emptyList()
-        }
-    }
-
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         _binding = BottomSheetTagExplorerBinding.inflate(inflater, container, false)
         return binding.root
@@ -50,10 +48,11 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
         super.onViewCreated(view, savedInstanceState)
         setupRecyclerView()
         setupSearchView()
+        observeTags() // Start observing for live updates
     }
 
     private fun setupRecyclerView() {
-        tagAdapter = TagAdapter(allTags) { selectedTag ->
+        tagAdapter = TagAdapter(emptyList()) { selectedTag ->
             Timber.d("Tag clicked: %s", selectedTag)
             tagSelectedListener?.onTagSelected(selectedTag)
             dismiss()
@@ -62,6 +61,15 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
             layoutManager = LinearLayoutManager(context)
             adapter = tagAdapter
         }
+    }
+    
+    private fun observeTags() {
+        tagsViewModel.tags.observe(viewLifecycleOwner, Observer { tags ->
+            Timber.d("Live update received in BottomSheet. Tag count: %d", tags.size)
+            allTags = tags // Update our local copy of the full list
+            // Re-apply the current search filter to the new list, or show the full list
+            filterTags(binding.searchViewTags.query.toString())
+        })
     }
 
     private fun setupSearchView() {
@@ -91,15 +99,6 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
 
     companion object {
         const val TAG = "TagExplorerBottomSheet"
-        private const val ARG_TAGS = "tags_list"
-
-        // Use this factory method to create a new instance and pass data
-        fun newInstance(tags: List<String>): TagExplorerBottomSheet {
-            val fragment = TagExplorerBottomSheet()
-            val args = Bundle()
-            args.putStringArrayList(ARG_TAGS, ArrayList(tags))
-            fragment.arguments = args
-            return fragment
-        }
+        // The newInstance factory is no longer needed to pass data
     }
 }
