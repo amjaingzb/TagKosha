@@ -52,10 +52,11 @@ class NoteEditorActivity : AppCompatActivity() {
 
     // Replace the ENTIRE saveNote function with this new one.
 
+    // Replace the entire saveNote function with this one.
     private fun saveNote() {
         val title = binding.etNoteTitle.text.toString().trim()
         val content = binding.etNoteContent.text.toString().trim()
-        val tagsInput = binding.etNoteTags.text.toString() // No trim needed here yet
+        val tagsInput = binding.etNoteTags.text.toString()
 
         if (title.isEmpty()) {
             Toast.makeText(this, "Title cannot be empty", Toast.LENGTH_SHORT).show()
@@ -64,18 +65,19 @@ class NoteEditorActivity : AppCompatActivity() {
 
         Timber.d("--- Tag Parsing ---")
         Timber.d("Raw Input String: '%s'", tagsInput)
-// --- ULTIMATE PARSING LOGIC USING REGEX ---
-// This pattern finds a '#' followed by one or more characters that are NOT whitespace or a comma.
-// This correctly extracts tags from strings like "#tag1#tag2" or "#tag1,#tag2".
-        val tagRegex = Regex("#[\\w-]+")
+
+        // --- The Official TagKosha Regex ---
+        // A tag starts with '#' and can contain letters, numbers, underscore, hyphen, and forward slash.
+        // This correctly implements our "Smart Structure" grammar.
+        val tagRegex = Regex("#[\\w-/]+")
         val tags = tagRegex.findAll(tagsInput)
             .map { it.value } // Get the matched string value
             .toSet()          // Remove duplicates
             .toList()         // Convert back to a list
+        // --- End Regex Logic ---
 
         Timber.d("Parsed Output List: %s", tags.toString())
         Timber.d("---------------------")
-// --- END REGEX LOGIC ---
 
         val userId = firebaseAuth.currentUser?.uid
         if (userId == null) {
@@ -129,21 +131,25 @@ class NoteEditorActivity : AppCompatActivity() {
     }
 
     // --- ADD THIS NEW HELPER FUNCTION TO THE SAME FILE ---
+// Replace only this function.
     private fun saveTagsForUser(userId: String, tags: List<String>) {
         val tagsCollection = firestore.collection("tags")
         for (tagName in tags) {
-            // Create a unique ID for each tag document to prevent duplicates
-            // For example, by combining userId and the tag name itself.
-            val docId = "${userId}_${tagName.substring(1)}" // e.g., "user123_idea"
+            // --- THE FIX IS HERE, USING YOUR SUGGESTION ---
+            // Create a "safe" version of the tag name for the document ID by replacing '/' with '.'
+            val safeTagName = tagName.substring(1).replace('/', '.')
+            val docId = "${userId}_$safeTagName"
+            // --- END FIX ---
 
             val tagData = hashMapOf(
                 "userId" to userId,
-                "tagName" to tagName
+                "tagName" to tagName // Still save the ORIGINAL tag name with the '/' in the data
             )
 
-            // Use .set() with a specific docId to either create or overwrite the tag.
-            // This ensures each user has only one document per tag name.
+            // Use .set() with the safe docId to either create or overwrite the tag.
             tagsCollection.document(docId).set(tagData)
+                .addOnFailureListener { e ->
+                    Timber.e(e, "Failed to save tag: %s", tagName)
+                }
         }
-    }
-}
+    }}

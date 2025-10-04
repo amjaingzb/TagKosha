@@ -7,6 +7,7 @@ Bullet points
 6. free tier users - 1 device - sqlite - personal space to backup db .. or maybe tagKoshaLite.. or license based
 7. implement storage limits - display free %age remaining
 8. Grammar display as a tool tip and some detailed help also ...
+9. (cost in terms of firebase . I am assuming if the data is fully cached then this search will be fully local ).. onSnapShot listener should help to maintain data updates..
 
 
 ###TAG-CONVERSATION-2025-10-02 21:26:45
