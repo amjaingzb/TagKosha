@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.appcompat.widget.SearchView
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.firebase.auth.FirebaseAuth
@@ -48,11 +49,13 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         setupRecyclerView()
+        setupSearchView() // New setup method
         fetchTags()
     }
 
     private fun setupRecyclerView() {
-        tagAdapter = TagAdapter(allTags) { selectedTag ->
+        // Initialize with an empty list. The list will be populated by fetchTags().
+        tagAdapter = TagAdapter(emptyList()) { selectedTag ->
             Timber.d("Tag clicked: %s", selectedTag)
             tagSelectedListener?.onTagSelected(selectedTag)
             dismiss()
@@ -61,6 +64,31 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
             layoutManager = LinearLayoutManager(context)
             adapter = tagAdapter
         }
+    }
+
+    private fun setupSearchView() {
+        binding.searchViewTags.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                // We perform filtering as the user types, so we don't need to do anything on submit.
+                return false
+            }
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                filterTags(newText)
+                return true
+            }
+        })
+    }
+
+    private fun filterTags(query: String?) {
+        val filteredList = if (query.isNullOrBlank()) {
+            allTags // If search is empty, show all tags
+        } else {
+            // Perform client-side filtering (case-insensitive)
+            val lowerCaseQuery = query.lowercase()
+            allTags.filter { it.lowercase().contains(lowerCaseQuery) }
+        }
+        tagAdapter.updateList(filteredList)
     }
 
     private fun fetchTags() {
@@ -73,7 +101,8 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
                 allTags.clear()
                 val tagNames = documents.mapNotNull { it.getString("tagName") }.sorted()
                 allTags.addAll(tagNames)
-                tagAdapter.notifyDataSetChanged()
+                // Initially, display the full list
+                tagAdapter.updateList(allTags)
                 Timber.d("Successfully fetched %d tags", allTags.size)
             }
             .addOnFailureListener { exception ->

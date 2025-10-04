@@ -21,6 +21,12 @@ class TagAdapter(
 
     override fun getItemCount(): Int = tags.size
 
+    // New method to update the list with filtered results
+    fun updateList(newList: List<String>) {
+        tags = newList
+        notifyDataSetChanged()
+    }
+
     inner class TagViewHolder(private val binding: ItemTagBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(tag: String) {
             binding.tvTagName.text = tag

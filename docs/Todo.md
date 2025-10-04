@@ -8,6 +8,7 @@ Bullet points
 7. implement storage limits - display free %age remaining
 8. Grammar display as a tool tip and some detailed help also ...
 9. (cost in terms of firebase . I am assuming if the data is fully cached then this search will be fully local ).. onSnapShot listener should help to maintain data updates..
+10. Whatever we are doing for tags will we not have to do that same for notes also ? (I mean why should we fetch the notes without checking in local cache) Also should we start listener for the currently active note and stop that when a new note is active. that will allow note to be synced as well ..
 
 
 ###TAG-CONVERSATION-2025-10-02 21:26:45
