@@ -10,8 +10,9 @@ import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
-import com.jbros.tagkosha.adapter.TagAdapter
+import com.jbros.tagkosha.adapter.TagTreeAdapter
 import com.jbros.tagkosha.databinding.BottomSheetTagExplorerBinding
+import com.jbros.tagkosha.model.TagNode
 import com.jbros.tagkosha.viewmodel.TagsViewModel
 import timber.log.Timber
 
@@ -20,12 +21,11 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
     private var _binding: BottomSheetTagExplorerBinding? = null
     private val binding get() = _binding!!
 
-    private lateinit var tagAdapter: TagAdapter
+    private lateinit var tagTreeAdapter: TagTreeAdapter
     private var tagSelectedListener: OnTagSelectedListener? = null
 
-    // Get a reference to the Activity's ViewModel
     private val tagsViewModel: TagsViewModel by activityViewModels()
-    private var allTags = listOf<String>() // Holds the current full list of tags
+    private var rootNodes = mutableListOf<TagNode>() // The full, parsed tree structure
 
     interface OnTagSelectedListener {
         fun onTagSelected(tag: String)
@@ -48,28 +48,46 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
         super.onViewCreated(view, savedInstanceState)
         setupRecyclerView()
         setupSearchView()
-        observeTags() // Start observing for live updates
+        observeTags()
     }
 
     private fun setupRecyclerView() {
-        tagAdapter = TagAdapter(emptyList()) { selectedTag ->
-            Timber.d("Tag clicked: %s", selectedTag)
-            tagSelectedListener?.onTagSelected(selectedTag)
-            dismiss()
-        }
+        tagTreeAdapter = TagTreeAdapter(
+            onTagClicked = { node ->
+                tagSelectedListener?.onTagSelected(node.fullName)
+                dismiss()
+            },
+            onExpandClicked = { node ->
+                node.isExpanded = !node.isExpanded
+                updateDisplayList()
+            }
+        )
         binding.recyclerViewTags.apply {
             layoutManager = LinearLayoutManager(context)
-            adapter = tagAdapter
+            adapter = tagTreeAdapter
         }
     }
-    
+
     private fun observeTags() {
         tagsViewModel.tags.observe(viewLifecycleOwner, Observer { tags ->
-            Timber.d("Live update received in BottomSheet. Tag count: %d", tags.size)
-            allTags = tags // Update our local copy of the full list
-            // Re-apply the current search filter to the new list, or show the full list
-            filterTags(binding.searchViewTags.query.toString())
+            Timber.d("Live update received. Reparsing tag tree. Tag count: %d", tags.size)
+            rootNodes = parseFlatListToTreeNodes(tags)
+            updateDisplayList()
         })
+    }
+    
+    private fun updateDisplayList() {
+        val displayList = mutableListOf<TagNode>()
+        fun addNodesToList(nodes: List<TagNode>) {
+            for (node in nodes) {
+                displayList.add(node)
+                if (node.isExpanded) {
+                    addNodesToList(node.children)
+                }
+            }
+        }
+        addNodesToList(rootNodes)
+        tagTreeAdapter.submitList(displayList, isSearch = false)
     }
 
     private fun setupSearchView() {
@@ -83,13 +101,47 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
     }
 
     private fun filterTags(query: String?) {
-        val filteredList = if (query.isNullOrBlank()) {
-            allTags
-        } else {
-            val lowerCaseQuery = query.lowercase()
-            allTags.filter { it.lowercase().contains(lowerCaseQuery) }
+        if (query.isNullOrBlank()) {
+            updateDisplayList() // If search is cleared, show the tree view again
+            return
         }
-        tagAdapter.updateList(filteredList)
+
+        val searchResults = mutableListOf<TagNode>()
+        val lowerCaseQuery = query.lowercase()
+
+        fun findMatches(nodes: List<TagNode>) {
+            for (node in nodes) {
+                if (node.fullName.lowercase().contains(lowerCaseQuery)) {
+                    searchResults.add(node)
+                }
+                findMatches(node.children) // Recursively search children
+            }
+        }
+        findMatches(rootNodes)
+        tagTreeAdapter.submitList(searchResults, isSearch = true)
+    }
+    
+    // --- The Parser Logic ---
+    private fun parseFlatListToTreeNodes(tags: List<String>): MutableList<TagNode> {
+        val nodeMap = mutableMapOf<String, TagNode>()
+        val roots = mutableListOf<TagNode>()
+
+        for (tag in tags.sorted()) {
+            val parts = tag.removePrefix("#").split('/')
+            val level = parts.size - 1
+            val displayName = parts.last()
+            
+            val node = TagNode(fullName = tag, displayName = displayName, level = level)
+
+            if (level == 0) {
+                roots.add(node)
+            } else {
+                val parentFullName = "#" + parts.dropLast(1).joinToString("/")
+                nodeMap[parentFullName]?.children?.add(node)
+            }
+            nodeMap[tag] = node
+        }
+        return roots
     }
 
     override fun onDestroyView() {
@@ -99,6 +151,5 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
 
     companion object {
         const val TAG = "TagExplorerBottomSheet"
-        // The newInstance factory is no longer needed to pass data
     }
 }
