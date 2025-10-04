@@ -114,15 +114,20 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
         }
     }
     
+    // --- PARSER LOGIC UPDATED ---
     private fun parseFlatListToTree(tags: List<String>): MutableList<TagNode> {
         val nodeMap = mutableMapOf<String, TagNode>()
         val roots = mutableListOf<TagNode>()
 
         for (tag in tags.sorted()) {
             val parts = tag.removePrefix("#").split('/')
+            
+            // The display name for the tree now also gets a '#' prefix
+            val displayName = "#" + parts.last()
+
             val node = TagNode(
                 fullName = tag,
-                displayName = parts.last(),
+                displayName = displayName,
                 level = parts.size - 1
             )
             nodeMap[tag] = node
@@ -139,7 +144,7 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
     private fun createFlatListFromTree(nodes: List<TagNode>): MutableList<TagNode> {
         val flatList = mutableListOf<TagNode>()
         fun addToList(nodesToAdd: List<TagNode>) {
-            for (node in nodesToAdd) {
+            nodesToAdd.forEach { node ->
                 flatList.add(node)
                 addToList(node.children)
             }

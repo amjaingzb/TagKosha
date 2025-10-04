@@ -34,11 +34,10 @@ class TagTreeAdapter(
 
     inner class TagViewHolder(private val binding: ItemTagTreeBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(node: TagNode) {
-            // --- REVISED DISPLAY NAME LOGIC ---
-            // In search mode, show the full, unambiguous tag. In browse mode, show the clean name.
+            // --- THIS IS THE CORRECTED LOGIC ---
+            // In search mode, show the full, unambiguous tag. In browse mode, show the clean name with a '#'.
             binding.tvTagName.text = if (isSearchMode) node.fullName else node.displayName
 
-            // --- REVISED INDENTATION LOGIC ---
             // Only apply indentation in browse (tree) mode.
             val indentation = if (isSearchMode) 0 else node.level * 50
             binding.root.setPadding(indentation + 48, binding.root.paddingTop, binding.root.paddingRight, binding.root.paddingBottom)
