@@ -153,14 +153,16 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
     }
 
     // Replace the existing performNoteQuery function with this one
+    // Replace only this function in MainActivity.kt
     private fun performNoteQuery() {
         val userId = firebaseAuth.currentUser?.uid ?: return
         var query: Query = firestore.collection("notes").whereEqualTo("userId", userId)
 
         // First, get the complete list of tags to search for, including children.
         val expandedTags = getExpandedTags()
-        Timber.d("Active filters (user selection): %s", activeFilters)
-        Timber.d("Expanded filters (for query): %s", expandedTags)
+        Timber.d("--- QUERY START ---")
+        Timber.d("[Step 1] Active Filters: %s", activeFilters)
+        Timber.d("[Step 2] Expanded Tags for Firestore: %s", expandedTags)
 
         // Only apply the 'whereArrayContainsAny' filter if we have tags to search for.
         if (expandedTags.isNotEmpty()) {
@@ -177,6 +179,7 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
 
         query.orderBy("updatedAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshots, error ->
+                Timber.d("--- LISTENER FIRED ---")
                 if (error != null) {
                     Timber.e(error, "Error loading notes. Message: %s", error.message)
                     Toast.makeText(this, "Error loading notes. Check Logcat.", Toast.LENGTH_LONG).show()
@@ -189,22 +192,30 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
                         val note = doc.toObject(Note::class.java)
                         note?.apply { id = doc.id }
                     }
+                    Timber.d("[Step 3] Notes received from Firestore: %d notes", newNotes.size)
+                    newNotes.forEach { Timber.d(" -> Received Note Title: %s", it.title) }
 
                     // Client-side filtering to enforce "AND" logic for multiple active filters.
                     // This is now more powerful to handle hierarchies correctly.
-                    val filteredNotes = if (activeFilters.size > 1) {
+                    // We no longer trust the listener's result set to be perfectly pre-filtered during live updates.
+                    val filteredNotes = if (activeFilters.isNotEmpty()) {
+                        Timber.d("[Step 4] Applying client-side hierarchical filter because activeFilters is not empty.")
                         newNotes.filter { note ->
-                            // A note must satisfy the hierarchy of EACH active filter.
+                            // The 'all' check handles both single and multiple ("AND") filters correctly.
                             activeFilters.all { filter ->
                                 note.tags.any { it.startsWith(filter) }
                             }
                         }
                     } else {
+                        Timber.d("[Step 4] No active filters. Showing all received notes.")
                         newNotes
                     }
+                    Timber.d("[Step 5] Final notes after client-side filter: %d notes", filteredNotes.size)
+                    filteredNotes.forEach { Timber.d(" -> Final Note Title: %s", it.title) }
 
                     notesList.addAll(filteredNotes)
                     noteAdapter.updateNotes(notesList)
+                    Timber.d("--- QUERY END ---")
                 }
             }
     }
