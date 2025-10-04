@@ -34,27 +34,26 @@ class TagTreeAdapter(
 
     inner class TagViewHolder(private val binding: ItemTagTreeBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(node: TagNode) {
-            binding.tvTagName.text = node.displayName
+            // --- REVISED DISPLAY NAME LOGIC ---
+            // In search mode, show the full, unambiguous tag. In browse mode, show the clean name.
+            binding.tvTagName.text = if (isSearchMode) node.fullName else node.displayName
 
-            val indentation = node.level * 50
-            binding.root.setPadding(indentation + 16, binding.root.paddingTop, binding.root.paddingRight, binding.root.paddingBottom)
+            // --- REVISED INDENTATION LOGIC ---
+            // Only apply indentation in browse (tree) mode.
+            val indentation = if (isSearchMode) 0 else node.level * 50
+            binding.root.setPadding(indentation + 48, binding.root.paddingTop, binding.root.paddingRight, binding.root.paddingBottom)
 
-            // --- REVISED VISIBILITY AND ROTATION LOGIC ---
             if (isSearchMode || node.children.isEmpty()) {
-                // In search mode or if it's a leaf node, hide the arrow but keep the space
                 binding.ivExpandArrow.visibility = View.INVISIBLE
-                binding.ivExpandArrow.setOnClickListener(null) // Remove click listener
+                binding.ivExpandArrow.setOnClickListener(null)
             } else {
-                // It's a parent node in browse mode, show the arrow
                 binding.ivExpandArrow.visibility = View.VISIBLE
-                // Animate the rotation
                 binding.ivExpandArrow.animate().rotation(if (node.isExpanded) 90f else 0f).setDuration(200).start()
                 binding.ivExpandArrow.setOnClickListener {
                     onExpandClicked(node)
                 }
             }
-
-            // The whole item is always clickable to select the tag
+            
             itemView.setOnClickListener {
                 onTagClicked(node)
             }

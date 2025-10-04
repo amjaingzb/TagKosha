@@ -26,7 +26,7 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
 
     private val tagsViewModel: TagsViewModel by activityViewModels()
     private var rootNodes = mutableListOf<TagNode>()
-    private var flatTagList = mutableListOf<TagNode>() // For fast searching
+    private var flatTagList = mutableListOf<TagNode>()
 
     interface OnTagSelectedListener {
         fun onTagSelected(tag: String)
@@ -74,20 +74,17 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
             Timber.d("Reparsing tag tree. Tag count: %d", tags.size)
             rootNodes = parseFlatListToTree(tags)
             flatTagList = createFlatListFromTree(rootNodes)
-            // Show the initial tree view
-            updateDisplayListFromTree()
+            // Re-apply filter if search is active, otherwise show the tree
+            filterTags(binding.searchViewTags.query.toString())
         })
     }
     
-    // Generates the visible list from the tree structure
     private fun updateDisplayListFromTree() {
         val displayList = mutableListOf<TagNode>()
         fun addNodesToList(nodes: List<TagNode>) {
-            for (node in nodes) {
+            nodes.forEach { node ->
                 displayList.add(node)
-                if (node.isExpanded) {
-                    addNodesToList(node.children)
-                }
+                if (node.isExpanded) addNodesToList(node.children)
             }
         }
         addNodesToList(rootNodes)
@@ -104,22 +101,19 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
         })
     }
 
-    // --- REVISED AND CORRECTED SEARCH LOGIC ---
     private fun filterTags(query: String?) {
         if (query.isNullOrBlank()) {
-            // If search is cleared, show the tree view again
             updateDisplayListFromTree()
         } else {
-            // Otherwise, show a flat list of search results
             val lowerCaseQuery = query.lowercase()
             val searchResults = flatTagList.filter { 
+                // Search the full name, which includes the #
                 it.fullName.lowercase().contains(lowerCaseQuery) 
             }
             tagTreeAdapter.submitList(searchResults, isSearch = true)
         }
     }
     
-    // --- PARSER LOGIC (UNCHANGED, BUT RENAMED FOR CLARITY) ---
     private fun parseFlatListToTree(tags: List<String>): MutableList<TagNode> {
         val nodeMap = mutableMapOf<String, TagNode>()
         val roots = mutableListOf<TagNode>()
@@ -142,7 +136,6 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
         return roots
     }
     
-    // New helper to create a flat list for searching
     private fun createFlatListFromTree(nodes: List<TagNode>): MutableList<TagNode> {
         val flatList = mutableListOf<TagNode>()
         fun addToList(nodesToAdd: List<TagNode>) {
