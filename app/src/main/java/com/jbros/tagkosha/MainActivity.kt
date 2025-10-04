@@ -12,9 +12,11 @@ import com.jbros.tagkosha.adapter.NoteAdapter
 import com.jbros.tagkosha.auth.LoginActivity
 import com.jbros.tagkosha.databinding.ActivityMainBinding
 import com.jbros.tagkosha.model.Note
+import com.jbros.tagkosha.ui.TagExplorerBottomSheet
 import timber.log.Timber
 
-class MainActivity : AppCompatActivity() {
+// Implement the listener interface from the bottom sheet
+class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedListener {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var firebaseAuth: FirebaseAuth
@@ -40,9 +42,13 @@ class MainActivity : AppCompatActivity() {
 
         binding.topAppBar.setOnMenuItemClickListener { menuItem ->
             when (menuItem.itemId) {
+                R.id.menu_filter -> {
+                    // Show the Tag Explorer Bottom Sheet
+                    TagExplorerBottomSheet().show(supportFragmentManager, TagExplorerBottomSheet.TAG)
+                    true
+                }
                 R.id.menu_sign_out -> {
                     firebaseAuth.signOut()
-                    Toast.makeText(this, "Signed Out", Toast.LENGTH_SHORT).show()
                     checkUser()
                     true
                 }
@@ -53,7 +59,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupRecyclerView() {
         noteAdapter = NoteAdapter(notesList) { note ->
-            // Handle note click: open editor with existing note data
             val intent = Intent(this, NoteEditorActivity::class.java)
             intent.putExtra("EXISTING_NOTE", note)
             startActivity(intent)
@@ -70,7 +75,7 @@ class MainActivity : AppCompatActivity() {
             .orderBy("updatedAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshots, error ->
                 if (error != null) {
-                    Timber.e(error, "Error loading notes") // This will print the full error to Logcat.
+                    Timber.e(error, "Error loading notes")
                     Toast.makeText(this, "Error loading notes. Check Logcat.", Toast.LENGTH_LONG).show()
                     return@addSnapshotListener
                 }
@@ -80,7 +85,7 @@ class MainActivity : AppCompatActivity() {
                     for (document in snapshots.documents) {
                         val note = document.toObject(Note::class.java)
                         if (note != null) {
-                            note.id = document.id // Important: Store the document ID
+                            note.id = document.id
                             notesList.add(note)
                         }
                     }
@@ -92,10 +97,16 @@ class MainActivity : AppCompatActivity() {
     private fun checkUser() {
         if (firebaseAuth.currentUser == null) {
             val intent = Intent(this, LoginActivity::class.java)
-            // Clear the back stack
             intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
             startActivity(intent)
             finish()
         }
+    }
+
+    // This function is required by the OnTagSelectedListener interface
+    override fun onTagSelected(tag: String) {
+        Timber.d("Tag selected from Bottom Sheet: %s", tag)
+        Toast.makeText(this, "Selected: $tag", Toast.LENGTH_SHORT).show()
+        // We will add filter logic here in the next step
     }
 }
