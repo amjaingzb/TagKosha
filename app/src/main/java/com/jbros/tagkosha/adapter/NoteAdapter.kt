@@ -1,11 +1,12 @@
 package com.jbros.tagkosha.adapter
 
+import android.view.ContextThemeWrapper
 import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.PopupMenu
+import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.flexbox.FlexboxLayout
-import com.google.android.material.chip.Chip
 import com.jbros.tagkosha.R
 import com.jbros.tagkosha.databinding.ItemNoteBinding
 import com.jbros.tagkosha.model.Note
@@ -41,26 +42,19 @@ class NoteAdapter(
         fun bind(note: Note) {
             binding.tvNoteTitle.text = note.title
             binding.tvNoteContentPreview.text = note.content
-            
+
             binding.flexboxTags.removeAllViews()
             note.tags.forEach { tag ->
-                // The theme from the FlexboxLayout now automatically styles any Chip created within it.
-                // This is the simplest and most correct creation.
-                val chip = Chip(binding.flexboxTags.context)
-                chip.text = tag
-                chip.setOnClickListener {
+                // Use the new, simple style name
+                val contextWrapper = ContextThemeWrapper(itemView.context, R.style.TagTextViewStyle)
+                val tagView = TextView(contextWrapper)
+
+                tagView.text = tag
+                tagView.setOnClickListener {
                     onTagChipClicked(tag)
                 }
 
-                // We still need to set margins for Flexbox spacing
-                val params = FlexboxLayout.LayoutParams(
-                    FlexboxLayout.LayoutParams.WRAP_CONTENT,
-                    FlexboxLayout.LayoutParams.WRAP_CONTENT
-                )
-                params.setMargins(0, 0, 16, 8)
-                chip.layoutParams = params
-
-                binding.flexboxTags.addView(chip)
+                binding.flexboxTags.addView(tagView)
             }
 
             itemView.setOnClickListener {

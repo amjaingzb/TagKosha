@@ -6,23 +6,12 @@
         <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
     </style>
 
-    <style name="Theme.TagKosha" parent="Base.Theme.TagKosha">
-        <!-- THIS IS THE GLOBAL OVERRIDE THAT IS PROVEN TO WORK. -->
-    </style>
+    <style name="Theme.TagKosha" parent="Base.Theme.TagKosha" />
 
-    <!-- THIS IS THE CORRECT DEFINITION FOR OUR TEXT-LIKE CHIP STYLE -->
-    <style name="Widget.App.Chip.TextLike" parent="Widget.MaterialComponents.Chip.Action">
-        <item name="chipBackgroundColor">@android:color/transparent</item>
-        <item name="chipMinHeight">0dp</item>
-        <item name="chipStartPadding">0dp</item>
-        <item name="chipEndPadding">8dp</item>
-        <item name="chipStrokeWidth">0dp</item>
-        <item name="ensureMinTouchTargetSize">false</item>
-        <item name="chipMinTouchTargetSize">0dp</item>
+    <!-- The Final, Corrected Style with a simple name -->
+    <style name="TagTextViewStyle" parent="android:Widget.TextView">
         <item name="android:textColor">?attr/colorPrimary</item>
-        <item name="rippleColor">?attr/colorControlHighlight</item>
-    </style>
-    <style name="Theme.App.NoteTagContainer" parent="">
-        <item name="chipStyle">@style/Widget.App.Chip.TextLike</item>
+        <item name="android:background">?attr/selectableItemBackground</item>
+        <item name="android:paddingEnd">12dp</item> <!-- Provides spacing between tags -->
     </style>
 </resources>
