@@ -10,6 +10,7 @@ Bullet points
 9. (cost in terms of firebase . I am assuming if the data is fully cached then this search will be fully local ).. onSnapShot listener should help to maintain data updates..
 10. Whatever we are doing for tags will we not have to do that same for notes also ? (I mean why should we fetch the notes without checking in local cache) Also should we start listener for the currently active note and stop that when a new note is active. that will allow note to be synced as well ..
 11.. in tag broswer - sorted listing , count of notes as well as alphabet as well as tree 
+12. Borrow release version from workkonds, about screen from rkm attendance app , also borrow the concept of rendering test distributions of app useless by controlling the base version in meta data of firebase db (we had this concept in wordkons)
 
 
 ###TAG-CONVERSATION-2025-10-02 21:26:45
