@@ -10,7 +10,9 @@
 
     <!-- The Final, Corrected Style with a simple name -->
     <style name="TagTextViewStyle" parent="android:Widget.TextView">
-        <item name="android:textColor">?attr/colorPrimary</item>
+<!--        we are setting to a muted color programatically because primary color is too much noise, textPrimaryColor is too dull-->
+<!--        <item name="android:textColor">?attr/colorPrimary</item>-->
+<!--        <item name="android:textColor">?android:attr/textColorPrimary</item>-->
         <item name="android:background">?attr/selectableItemBackground</item>
         <item name="android:paddingEnd">8dp</item> <!-- Provides spacing between tags -->
     </style>

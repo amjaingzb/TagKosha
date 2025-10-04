@@ -39,17 +39,33 @@ class NoteAdapter(
     }
 
     inner class NoteViewHolder(private val binding: ItemNoteBinding) : RecyclerView.ViewHolder(binding.root) {
+        // In NoteAdapter.kt, inside the NoteViewHolder class...
+
         fun bind(note: Note) {
             binding.tvNoteTitle.text = note.title
             binding.tvNoteContentPreview.text = note.content
 
             binding.flexboxTags.removeAllViews()
+
+            // --- NEW COLOR LOGIC ---
+            // 1. Get the primary color from the theme
+            val typedValue = android.util.TypedValue()
+            itemView.context.theme.resolveAttribute(android.R.attr.colorPrimary, typedValue, true)
+
+            val primaryColor = typedValue.data
+
+            // 2. Create a muted version with ~70% alpha
+            val alpha = 178 // Approximately 70% of 255
+            val mutedColor = (alpha shl 24) or (primaryColor and 0x00FFFFFF)
+            // --- END COLOR LOGIC ---
+
             note.tags.forEach { tag ->
-                // Use the new, simple style name
                 val contextWrapper = ContextThemeWrapper(itemView.context, R.style.TagTextViewStyle)
                 val tagView = TextView(contextWrapper)
 
                 tagView.text = tag
+                tagView.setTextColor(mutedColor) // 3. Apply the calculated muted color
+
                 tagView.setOnClickListener {
                     onTagChipClicked(tag)
                 }
