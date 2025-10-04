@@ -217,8 +217,10 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         // Use a Set to automatically handle duplicates if a parent and child are both selected
         val expanded = mutableSetOf<String>()
         activeFilters.forEach { filterTag ->
-            // Find all tags in our master list that start with the selected filter tag
-            val matchingTags = allUserTags.filter { it.startsWith(filterTag) }
+            val matchingTags = allUserTags.filter { tagInList ->
+                // A tag matches if it's the exact filter OR if it's a child (starts with filter + "/")
+                tagInList == filterTag || tagInList.startsWith("$filterTag/")
+            }
             expanded.addAll(matchingTags)
         }
         return expanded.toList()
