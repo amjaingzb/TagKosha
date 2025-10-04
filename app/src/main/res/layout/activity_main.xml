@@ -14,18 +14,32 @@
             android:id="@+id/topAppBar"
             android:layout_width="match_parent"
             android:layout_height="?attr/actionBarSize"
-            app:title="My Notes"
-            app:menu="@menu/main_menu" />
+            app:menu="@menu/main_menu"
+            app:title="@string/app_name" />
+
+        <!-- ACTIVE FILTERS PANEL PLACEHOLDER -->
+        <!-- This will show the selected filter tags (e.g., #work, #urgent) -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/recycler_view_active_filters"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:paddingStart="8dp"
+            android:paddingEnd="8dp"
+            android:visibility="gone"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+            tools:visibility="visible"
+            tools:listitem="@layout/item_filter_chip" /> <!-- We will create this layout next -->
 
     </com.google.android.material.appbar.AppBarLayout>
 
-    <!-- Content Area -->
+    <!-- NOTE DISPLAY PANEL -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_view_notes"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         app:layout_behavior="@string/appbar_scrolling_view_behavior"
-        tools:listitem="@layout/item_note" /> <!-- item_note will be created in the next step -->
+        tools:listitem="@layout/item_note" />
 
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
