@@ -154,18 +154,29 @@ class NoteEditorActivity : AppCompatActivity() {
 
         // --- All database operations now happen inside a transaction ---
         firestore.runTransaction { transaction ->
-            // Determine if this is a new note or an update
-            val noteRef = if (existingNote == null) {
-                firestore.collection("notes").document() // Create a reference for a new note
-            } else {
-                firestore.collection("notes").document(existingNote!!.id!!) // Get ref for existing
+            // --- PHASE 1: ALL READS MUST HAPPEN FIRST ---
+            // For every tag we intend to add, we first READ its document to see if it exists.
+            // We store the results of these reads in a map.
+            val tagsToAddSnapshots = tagsToAdd.associateWith { tagName ->
+                val tagRef = firestore.collection("tags").document(getTagDocId(userId, tagName))
+                transaction.get(tagRef) // Execute the read
             }
 
-            // --- 1. SIMPLIFIED: Handle Tag Increments ---
-            // We no longer call getHierarchicalTags. We only increment the actual tags added.
+            // (Note: We don't need to read for tagsToRemove, as we can safely assume they exist
+            // and just decrement them. A write on a non-existent doc would fail later if that assumption is wrong).
+
+
+            // --- PHASE 2: ALL WRITES HAPPEN AFTER ALL READS ---
+            val noteRef = if (existingNote == null) {
+                firestore.collection("notes").document()
+            } else {
+                firestore.collection("notes").document(existingNote!!.id!!)
+            }
+
+            // 1. Handle Tag Increments (using the data we read in Phase 1)
             tagsToAdd.forEach { tagName ->
                 val tagRef = firestore.collection("tags").document(getTagDocId(userId, tagName))
-                val tagDoc = transaction.get(tagRef)
+                val tagDoc = tagsToAddSnapshots[tagName]!! // Get the pre-fetched snapshot
                 if (tagDoc.exists()) {
                     transaction.update(tagRef, "count", FieldValue.increment(1))
                 } else {
@@ -174,37 +185,27 @@ class NoteEditorActivity : AppCompatActivity() {
                 }
             }
 
-            // --- 2. SIMPLIFIED: Handle Tag Decrements ---
-            // We no longer call getHierarchicalTags. We only decrement the actual tags removed.
+            // 2. Handle Tag Decrements
             tagsToRemove.forEach { tagName ->
                 val tagRef = firestore.collection("tags").document(getTagDocId(userId, tagName))
                 transaction.update(tagRef, "count", FieldValue.increment(-1))
             }
 
-            // --- 3. Save the Note Itself ---
+            // 3. Save the Note Itself
             if (existingNote == null) {
                 val newNote = Note(
-                    id = noteRef.id,
-                    userId = userId,
-                    title = title,
-                    content = content,
-                    tags = newTags.toList(),
-                    createdAt = Date(),
-                    updatedAt = Date()
+                    id = noteRef.id, userId = userId, title = title, content = content,
+                    tags = newTags.toList(), createdAt = Date(), updatedAt = Date()
                 )
                 transaction.set(noteRef, newNote)
             } else {
                 val updatedData = mapOf(
-                    "title" to title,
-                    "content" to content,
-                    "tags" to newTags.toList(),
-                    "updatedAt" to Date()
+                    "title" to title, "content" to content,
+                    "tags" to newTags.toList(), "updatedAt" to Date()
                 )
                 transaction.update(noteRef, updatedData)
             }
-
-            // Transaction will be committed automatically here if successful
-            null // Return null to satisfy the transaction block
+            null // Return null from the transaction block
         }.addOnSuccessListener {
             Toast.makeText(this, "Note saved successfully", Toast.LENGTH_SHORT).show()
             finish()
@@ -212,6 +213,7 @@ class NoteEditorActivity : AppCompatActivity() {
             Timber.e(e, "Transaction failed: Error saving note")
             Toast.makeText(this, "Error: ${e.message}", Toast.LENGTH_LONG).show()
         }
+
     }
 
     /**

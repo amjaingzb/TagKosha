@@ -191,7 +191,7 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
             }
         }
     }
-    
+
     private fun createFlatListFromTree(nodes: List<TagNode>): MutableList<TagNode> {
         val flatList = mutableListOf<TagNode>()
         fun addToList(nodesToAdd: List<TagNode>) {
