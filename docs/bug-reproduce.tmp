@@ -1,0 +1,10 @@
+How to reproduce 
+left the app for a long time ... 
+i remmber these kind of issues with firebase background conenction .. they sort of go to sleep and cause  temporary glitches... 
+After that I switch to app and then do this addition, Again the active filter is empty but notes only show this new note 
+2025-10-05 21:47:44.625 22767-22767 ajdebug-(M...agSelected com.jbros.tagkosha                   D  --- FILTER STATE --- ADDED '#long__word'. New state: [#long__word]
+2025-10-05 21:47:44.671 22767-22767 ajdebug-(M...$lambda$13 com.jbros.tagkosha                   D  --- FILTER STATE --- SnapshotListener: Filtering notes. activeFilters contains: [#long__word]
+2025-10-05 21:47:50.262 22767-22767 ajdebug-(M...TagRemoved com.jbros.tagkosha                   D  --- FILTER STATE --- onTagRemoved called for tag: '#long__word'
+2025-10-05 21:47:50.294 22767-22767 ajdebug-(M...$lambda$13 com.jbros.tagkosha                   D  --- FILTER STATE --- SnapshotListener: Filtering notes. activeFilters contains: []
+2025-10-05 21:47:58.317 22767-22767 ajdebug-(M...$lambda$13 com.jbros.tagkosha                   D  --- FILTER STATE --- SnapshotListener: Filtering notes. activeFilters contains: []
+2025-10-05 21:47:58.389 22767-22767 ajdebug-(M...$lambda$13 com.jbros.tagkosha                   D  --- FILTER STATE --- SnapshotListener: Filtering notes. activeFilters contains: []

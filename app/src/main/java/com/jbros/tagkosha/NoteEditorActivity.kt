@@ -23,8 +23,10 @@ class NoteEditorActivity : AppCompatActivity() {
     private lateinit var firestore: FirebaseFirestore
     private lateinit var firebaseAuth: FirebaseAuth
     private var existingNote: Note? = null
-    // --- NEW: State variable to track if the reserved tag is in the input field ---
-    private var isReservedTagPresent = false
+
+    // --- REFACTORED: More general state variable for any invalid input ---
+    private var isTagInputInvalid = false
+    private val tagValidationRegex = Regex("^#[\\w-/]*$")
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -147,21 +149,61 @@ class NoteEditorActivity : AppCompatActivity() {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
 
             override fun afterTextChanged(s: Editable?) {
-                if (s != null && s.toString().contains("#untagged")) {
-                    binding.etNoteTags.setTextColor(Color.RED)
-                    // Set the state variable to true
-                    isReservedTagPresent = true
-                } else {
+                if (s == null) return
+
+                val validationResult = validateTags(s.toString())
+
+                if (validationResult.isValid) {
                     binding.etNoteTags.setTextColor(defaultTextColor)
-                    // Set the state variable to false
-                    isReservedTagPresent = false
+                    isTagInputInvalid = false
+                } else {
+                    binding.etNoteTags.setTextColor(Color.RED)
+                    isTagInputInvalid = true
                 }
             }
         })
+
     }
+
+    // --- NEW: A dedicated validation function ---
+    /**
+     * Validates the entire tag input string based on our grammar rules.
+     * @return A ValidationResult object containing a boolean and an error message.
+     */
+    private fun validateTags(text: String): ValidationResult {
+        // The user can type #untagged, but we will show an error for it.
+        if (text.contains("#untagged")) {
+            return ValidationResult(false, "'#untagged' is a reserved tag and cannot be used.")
+        }
+
+        // Split the input by spaces to check each potential tag individually.
+        val potentialTags = text.split(' ').filter { it.isNotEmpty() }
+
+        for (tag in potentialTags) {
+            // Use the regex to check if the tag structure is valid.
+            // A valid tag must start with '#' and be followed by allowed characters.
+            if (!tagValidationRegex.matches(tag)) {
+                val errorMessage = if (!tag.startsWith("#")) {
+                    "Tags must start with a '#'."
+                } else {
+                    "Tags can only contain letters, numbers, '-', '_', and '/'."
+                }
+                return ValidationResult(false, errorMessage)
+            }
+        }
+
+        // If all checks pass, the input is valid.
+        return ValidationResult(true, "")
+    }
+
+    // --- NEW: A simple data class to hold validation results ---
+    data class ValidationResult(val isValid: Boolean, val errorMessage: String)
+
     private fun saveNote() {
-        if (isReservedTagPresent) {
-            Toast.makeText(this, "Cannot save. Please remove the reserved '#untagged' tag.", Toast.LENGTH_LONG).show()
+        val validationResult = validateTags(binding.etNoteTags.text.toString())
+        if (!validationResult.isValid) {
+            Toast.makeText(this, validationResult.errorMessage, Toast.LENGTH_LONG).show()
+            Timber.d("validation.error=%s",validationResult.errorMessage)
             return // Stop the function here
         }
 
