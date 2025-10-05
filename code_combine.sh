@@ -68,6 +68,8 @@ include_args=(
     '-o' '-name' '*.cpp'
     '-o' '-name' '*.h'
     '-o' '-name' '*.glsl'
+    '-o' '-name' '*.toml'
+    '-o' '-name' '*.js'
 )
 
 # --- Execute the find Command ---
