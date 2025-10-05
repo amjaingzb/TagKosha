@@ -10,6 +10,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.Observer
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.AggregateSource
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.jbros.tagkosha.adapter.ActiveFilterAdapter
@@ -76,13 +78,18 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
             }
         }
     }
-    
+
     private fun observeTags() {
+        // The 'tags' variable is correctly inferred as List<Tag> from the ViewModel
         tagsViewModel.tags.observe(this, Observer { tags ->
-            Timber.d("Tags updated from ViewModel. Count: %d", tags.size)
+            Timber.d("Tags updated from ViewModel. Object count: %d", tags.size)
             allUserTags.clear()
-            allUserTags.addAll(tags)
-            // If filters are active, re-run the query because the available tags might have changed
+
+            // THE FIX: Use .map to extract the 'name' string from each 'Tag' object
+            val tagNames = tags.map { it.name }
+            allUserTags.addAll(tagNames)
+
+            // The rest of the logic can now proceed as it expects a list of strings
             if (activeFilters.isNotEmpty()) {
                 performNoteQuery()
             }
@@ -210,6 +217,8 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         if (activeFilters.add(tag)) { // .add() returns true if the set was changed
             updateFilterUI()
             performNoteQuery()
+            // --- NEW: Trigger the self-healing mechanism ---
+            verifyAndRepairTagCount(tag)
         }
     }
 
@@ -230,6 +239,38 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         binding.recyclerViewActiveFilters.adapter = activeFilterAdapter
     }
 
+    private fun verifyAndRepairTagCount(tagName: String) {
+        val currentUser = firebaseAuth.currentUser ?: return
+        Timber.d("Verifying count for tag: %s", tagName)
+
+        // 1. Get the locally cached count from the ViewModel's data
+        val cachedTag = tagsViewModel.tags.value?.find { it.name == tagName }
+        val cachedCount = cachedTag?.count ?: -1 // Use -1 to signify "not found" or "unknown"
+
+        // 2. Run a cheap, server-side count() query for accuracy
+        firestore.collection("notes")
+            .whereEqualTo("userId", currentUser.uid)
+            .whereArrayContains("tags", tagName)
+            .count()
+            .get(AggregateSource.SERVER)
+            .addOnSuccessListener { snapshot ->
+                val serverCount = snapshot.count
+                Timber.d("Server count for '%s' is %d. Cached count is %d.", tagName, serverCount, cachedCount)
+
+                // 3. If they don't match, repair the data in Firestore
+                if (serverCount != cachedCount) {
+                    val tagDocId = getTagDocId(currentUser.uid, tagName)
+                    firestore.collection("tags").document(tagDocId)
+                        .update("count", serverCount)
+                        .addOnSuccessListener { Timber.i("Successfully repaired count for tag '%s' to %d", tagName, serverCount) }
+                        .addOnFailureListener { e -> Timber.e(e, "Failed to repair count for tag: %s", tagName) }
+                }
+            }
+            .addOnFailureListener { e ->
+                Timber.e(e, "Failed to get server count for tag: %s", tagName)
+            }
+    }
+
     private fun showDeleteConfirmationDialog(note: Note) {
         AlertDialog.Builder(this)
             .setTitle("Delete Note")
@@ -241,8 +282,44 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
 
     private fun deleteNote(note: Note) {
         val noteId = note.id ?: return
-        firestore.collection("notes").document(noteId).delete()
+        val currentUser = firebaseAuth.currentUser ?: return
+        Timber.d("Deleting note %s and decrementing %d tags.", noteId, note.tags.size)
+
+        // Use a WriteBatch to delete the note and decrement all tags atomically
+        val batch = firestore.batch()
+
+        // 1. Schedule the note deletion
+        val noteRef = firestore.collection("notes").document(noteId)
+        batch.delete(noteRef)
+
+        // 2. Schedule the counter decrements for all hierarchical tags
+        val tagsToDecrement = getHierarchicalTags(note.tags.toSet())
+        tagsToDecrement.forEach { tagName ->
+            val tagDocId = getTagDocId(currentUser.uid, tagName)
+            val tagRef = firestore.collection("tags").document(tagDocId)
+            batch.update(tagRef, "count", FieldValue.increment(-1))
+        }
+
+        // 3. Commit the atomic operation
+        batch.commit()
             .addOnSuccessListener { Toast.makeText(this, "Note deleted", Toast.LENGTH_SHORT).show() }
             .addOnFailureListener { e -> Timber.e(e, "Error deleting note") }
+    }
+
+    // --- NEW HELPER FUNCTIONS (needed for deleteNote and repair) ---
+    private fun getHierarchicalTags(tags: Set<String>): Set<String> {
+        val allHierarchicalTags = mutableSetOf<String>()
+        for (tag in tags) {
+            val parts = tag.removePrefix("#").split('/')
+            for (i in 1..parts.size) {
+                allHierarchicalTags.add("#" + parts.take(i).joinToString("/"))
+            }
+        }
+        return allHierarchicalTags
+    }
+
+    private fun getTagDocId(userId: String, tagName: String): String {
+        val safeTagName = tagName.substring(1).replace('/', '.')
+        return "${userId}_$safeTagName"
     }
 }

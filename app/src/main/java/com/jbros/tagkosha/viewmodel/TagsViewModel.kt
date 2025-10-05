@@ -6,7 +6,9 @@ import androidx.lifecycle.ViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
+import com.jbros.tagkosha.model.Tag // IMPORT THE NEW DATA CLASS
 import timber.log.Timber
+
 const val TAG_SANITY_LIMIT = 5000 // Define a constant for our limit
 
 class TagsViewModel : ViewModel() {
@@ -16,8 +18,9 @@ class TagsViewModel : ViewModel() {
     private var tagsListener: ListenerRegistration? = null
 
     // Private MutableLiveData that is only exposed as a non-mutable LiveData
-    private val _tags = MutableLiveData<List<String>>()
-    val tags: LiveData<List<String>> = _tags
+    // --- CHANGED: This now holds a List of Tag objects, not just Strings ---
+    private val _tags = MutableLiveData<List<Tag>>()
+    val tags: LiveData<List<Tag>> = _tags
 
     init {
         startTagsListener()
@@ -42,17 +45,18 @@ class TagsViewModel : ViewModel() {
             }
 
             if (snapshots != null) {
-                val tagNames = snapshots.documents.mapNotNull { it.getString("tagName") }.sorted()
-                // --- THE SAFEGUARD CHECK ---
-                if (tagNames.size > TAG_SANITY_LIMIT) {
-                    // Log a severe warning. This is our "canary in the coal mine."
-                    Timber.e("CRITICAL: User has %d tags, exceeding the sanity limit of %d. Client-side performance may be affected.", tagNames.size, TAG_SANITY_LIMIT)
-                    // In a future, more advanced app, we could even send a non-fatal
-                    // crash report to Crashlytics here to alert us (the developers).
+                // --- CHANGED: Map documents to our new Tag data class ---
+                val tagObjects = snapshots.documents.mapNotNull { doc ->
+                    doc.toObject(Tag::class.java)
+                }.sortedBy { it.name }
+
+                // --- THE SAFEGUARD CHECK (Now checks the new list) ---
+                if (tagObjects.size > TAG_SANITY_LIMIT) {
+                    Timber.e("CRITICAL: User has %d tags, exceeding the sanity limit of %d. Client-side performance may be affected.", tagObjects.size, TAG_SANITY_LIMIT)
                 }
                 // --- END SAFEGUARD ---
-                _tags.postValue(tagNames) // Post the new list to observers
-                Timber.d("Tag list updated. Found %d tags.", tagNames.size)
+                _tags.postValue(tagObjects) // Post the new list to observers
+                Timber.d("Tag list updated. Found %d tags.", tagObjects.size)
             }
         }
     }

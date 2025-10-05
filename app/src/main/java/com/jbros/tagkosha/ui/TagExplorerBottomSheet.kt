@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.jbros.tagkosha.adapter.TagTreeAdapter
 import com.jbros.tagkosha.databinding.BottomSheetTagExplorerBinding
+import com.jbros.tagkosha.model.Tag
 import com.jbros.tagkosha.model.TagNode
 import com.jbros.tagkosha.viewmodel.TagsViewModel
 import timber.log.Timber
@@ -70,8 +71,10 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
     }
 
     private fun observeTags() {
+        // The observer now receives List<Tag> instead of List<String>
         tagsViewModel.tags.observe(viewLifecycleOwner, Observer { tags ->
-            Timber.d("Reparsing tag tree. Tag count: %d", tags.size)
+            Timber.d("Reparsing tag tree. Tag object count: %d", tags.size)
+            // Pass the new list to the parser
             rootNodes = parseFlatListToTree(tags)
             flatTagList = createFlatListFromTree(rootNodes)
             // Re-apply filter if search is active, otherwise show the tree
@@ -115,22 +118,24 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
     }
     
     // --- PARSER LOGIC UPDATED ---
-    private fun parseFlatListToTree(tags: List<String>): MutableList<TagNode> {
+    private fun parseFlatListToTree(tags: List<Tag>): MutableList<TagNode> {
         val nodeMap = mutableMapOf<String, TagNode>()
         val roots = mutableListOf<TagNode>()
 
-        for (tag in tags.sorted()) {
-            val parts = tag.removePrefix("#").split('/')
-            
+        // We already sorted the list in the ViewModel
+        for (tag in tags) {
+            val parts = tag.name.removePrefix("#").split('/')
+
             // The display name for the tree now also gets a '#' prefix
             val displayName = "#" + parts.last()
 
             val node = TagNode(
-                fullName = tag,
+                fullName = tag.name,
                 displayName = displayName,
-                level = parts.size - 1
+                level = parts.size - 1,
+                count = tag.count // *** ASSIGN THE COUNT HERE ***
             )
-            nodeMap[tag] = node
+            nodeMap[tag.name] = node
             if (node.level == 0) {
                 roots.add(node)
             } else {

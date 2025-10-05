@@ -32,11 +32,21 @@ class TagTreeAdapter(
 
     override fun getItemCount(): Int = displayList.size
 
+    // ... inside the TagTreeAdapter class ...
+
     inner class TagViewHolder(private val binding: ItemTagTreeBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(node: TagNode) {
-            // --- THIS IS THE CORRECTED LOGIC ---
-            // In search mode, show the full, unambiguous tag. In browse mode, show the clean name with a '#'.
-            binding.tvTagName.text = if (isSearchMode) node.fullName else node.displayName
+            // --- EDITED LOGIC TO INCLUDE COUNT ---
+            // 1. Determine the base name to display (full path for search, short name for tree)
+            val nameToShow = if (isSearchMode) node.fullName else node.displayName
+
+            // 2. Append the count if it's greater than 0, otherwise just show the name.
+            binding.tvTagName.text = if (node.count > 0) {
+                "$nameToShow (${node.count})"
+            } else {
+                nameToShow
+            }
+            // --- END EDITED LOGIC ---
 
             // Only apply indentation in browse (tree) mode.
             val indentation = if (isSearchMode) 0 else node.level * 50
@@ -52,7 +62,7 @@ class TagTreeAdapter(
                     onExpandClicked(node)
                 }
             }
-            
+
             itemView.setOnClickListener {
                 onTagClicked(node)
             }
