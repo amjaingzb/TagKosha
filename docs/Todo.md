@@ -15,8 +15,10 @@ Bullet points
 14. Strict Offline Restrictions on Edits/Deletes: We explicitly decided that users cannot edit or delete existing notes while offline. They can only create new ones. This was the most critical simplification, as it completely avoids the complex and error-prone logic of trying to merge counter decrements and updates when the device comes back online.
 15 . Handling of Zero-Count Tags: We have not yet implemented a mechanism to clean up and delete a tag document from Firestore when its count falls to zero. Currently, these tags will remain in the database with a count of 0, which is harmless but not ideal for long-term data hygiene.
 16. cloud function to deal with counter
+17. majorly enhance a new note or edit note to support html or rich edits , pasting of url , pasting of clipboard image data , clipboard url data ... firestore 5gb space 
 
 
 =========================DONE===================================
 4. Show available tags like ankit was showing with theor count in bracket
 11.. in tag broswer - sorted listing , count of notes as well as alphabet as well as tree 
+2. Add a #untagged to every note without a tag

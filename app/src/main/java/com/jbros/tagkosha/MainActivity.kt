@@ -48,6 +48,8 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         firebaseAuth = FirebaseAuth.getInstance()
         firestore = FirebaseFirestore.getInstance()
 
+        Timber.d("--- FILTER STATE --- onCreate: activeFilters is empty. State is clean.")
+
         // The ViewModel will be created here and start listening.
         // We don't need to explicitly observe the tags here unless MainActivity
         // needs the list for another purpose, which it currently does not.
@@ -164,7 +166,9 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
                         val note = doc.toObject(Note::class.java)
                         note?.apply { id = doc.id }
                     }
-                    
+
+                    Timber.d("--- FILTER STATE --- SnapshotListener: Filtering notes. activeFilters contains: %s", activeFilters.toString())
+
                     // Client-side filtering to enforce "AND" logic for multiple active filters.
                     // This is now more powerful to handle hierarchies correctly.
                     // We no longer trust the listener's result set to be perfectly pre-filtered during live updates.
@@ -215,6 +219,7 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
     // This is called from the TagExplorerBottomSheet when a tag is selected
     override fun onTagSelected(tag: String) {
         if (activeFilters.add(tag)) { // .add() returns true if the set was changed
+            Timber.d("--- FILTER STATE --- ADDED '%s'. New state: %s", tag, activeFilters.toString())
             updateFilterUI()
             performNoteQuery()
             // --- NEW: Trigger the self-healing mechanism ---
@@ -224,6 +229,7 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
 
     // This is called from the ActiveFilterAdapter when a chip's close icon is clicked
     private fun onTagRemoved(tag: String) {
+        Timber.d("--- FILTER STATE --- onTagRemoved called for tag: '%s'", tag)
         if (activeFilters.remove(tag)) {
             updateFilterUI()
             performNoteQuery()
