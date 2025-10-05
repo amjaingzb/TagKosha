@@ -23,6 +23,8 @@ class NoteEditorActivity : AppCompatActivity() {
     private lateinit var firestore: FirebaseFirestore
     private lateinit var firebaseAuth: FirebaseAuth
     private var existingNote: Note? = null
+    // --- NEW: State variable to track if the reserved tag is in the input field ---
+    private var isReservedTagPresent = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -125,7 +127,10 @@ class NoteEditorActivity : AppCompatActivity() {
         existingNote?.let { note ->
             binding.etNoteTitle.setText(note.title)
             binding.etNoteContent.setText(note.content)
-            binding.etNoteTags.setText(note.tags.joinToString(" "))
+
+            // Filter out the #untagged tag before displaying. The user should never see it.
+            val tagsToDisplay = note.tags.filter { it != "#untagged" }
+            binding.etNoteTags.setText(tagsToDisplay.joinToString(" "))
         }
     }
 
@@ -134,10 +139,8 @@ class NoteEditorActivity : AppCompatActivity() {
      * feedback if the user types the reserved "#untagged" tag.
      */
     private fun setupTagInputListener() {
-        // First, get the default text color from the current theme to handle both light/dark modes
-        val typedValue = TypedValue()
-        theme.resolveAttribute(android.R.attr.textColorPrimary, typedValue, true)
-        val defaultTextColor = typedValue.data
+        // --- FIX #1: Save the EditText's ACTUAL current color, not a theme color ---
+        val defaultTextColor = binding.etNoteTags.currentTextColor
 
         binding.etNoteTags.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
@@ -145,17 +148,23 @@ class NoteEditorActivity : AppCompatActivity() {
 
             override fun afterTextChanged(s: Editable?) {
                 if (s != null && s.toString().contains("#untagged")) {
-                    // If the reserved tag is present, change the text color to red
                     binding.etNoteTags.setTextColor(Color.RED)
-                    Toast.makeText(this@NoteEditorActivity, "#untagged is a reserved tag", Toast.LENGTH_SHORT).show()
+                    // Set the state variable to true
+                    isReservedTagPresent = true
                 } else {
-                    // Otherwise, ensure the text color is the default
                     binding.etNoteTags.setTextColor(defaultTextColor)
+                    // Set the state variable to false
+                    isReservedTagPresent = false
                 }
             }
         })
     }
     private fun saveNote() {
+        if (isReservedTagPresent) {
+            Toast.makeText(this, "Cannot save. Please remove the reserved '#untagged' tag.", Toast.LENGTH_LONG).show()
+            return // Stop the function here
+        }
+
         val title = binding.etNoteTitle.text.toString().trim()
         val content = binding.etNoteContent.text.toString().trim()
         val tagsInput = binding.etNoteTags.text.toString()
