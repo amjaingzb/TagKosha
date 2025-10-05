@@ -78,6 +78,8 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
             rootNodes = parseFlatListToTree(tags)
             // --- NEW: Calculate the inclusive counts for the entire tree ---
             calculateInclusiveCounts(rootNodes)
+            // --- STEP 2: NEW - Sort the tree by the new inclusive counts ---
+            sortTagTree(rootNodes)
             flatTagList = createFlatListFromTree(rootNodes)
             // Re-apply filter if search is active, otherwise show the tree
             filterTags(binding.searchViewTags.query.toString())
@@ -148,7 +150,7 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
         }
         return roots
     }
-    
+
     // --- THIS IS THE NEW HIERARCHICAL CALCULATION LOGIC ---
     /**
      * Recursively traverses the tag tree and calculates the inclusive count for each node.
@@ -172,6 +174,24 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
         return totalCount
     }
 
+    /**
+     * Recursively sorts the tag tree. Each level of the hierarchy is sorted
+     * primarily by its inclusive count (descending) and secondarily by name (ascending).
+     * @param nodes The list of nodes to sort in-place.
+     */
+    private fun sortTagTree(nodes: MutableList<TagNode>) {
+        // Sort the current list of nodes.
+        // The comparator first sorts by count descending, then by name ascending as a tie-breaker.
+        nodes.sortWith(compareByDescending<TagNode> { it.count }.thenBy { it.fullName })
+
+        // Now, recursively sort the children of each node in the now-sorted list.
+        for (node in nodes) {
+            if (node.children.isNotEmpty()) {
+                sortTagTree(node.children)
+            }
+        }
+    }
+    
     private fun createFlatListFromTree(nodes: List<TagNode>): MutableList<TagNode> {
         val flatList = mutableListOf<TagNode>()
         fun addToList(nodesToAdd: List<TagNode>) {
