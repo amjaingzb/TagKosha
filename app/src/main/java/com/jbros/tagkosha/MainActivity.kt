@@ -292,10 +292,9 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
         val noteRef = firestore.collection("notes").document(noteId)
         batch.delete(noteRef)
 
-        // 2. Schedule the counter decrements for all hierarchical tags
-        val tagsToDecrement = getHierarchicalTags(note.tags.toSet())
-        tagsToDecrement.forEach { tagName ->
-            val tagDocId = getTagDocId(currentUser.uid, tagName)
+        // --- SIMPLIFIED: Decrement only the note's exact tags ---
+        note.tags.forEach { tagName ->
+            val tagDocId = getTagDocId(firebaseAuth.currentUser!!.uid, tagName)
             val tagRef = firestore.collection("tags").document(tagDocId)
             batch.update(tagRef, "count", FieldValue.increment(-1))
         }
@@ -307,16 +306,16 @@ class MainActivity : AppCompatActivity(), TagExplorerBottomSheet.OnTagSelectedLi
     }
 
     // --- NEW HELPER FUNCTIONS (needed for deleteNote and repair) ---
-    private fun getHierarchicalTags(tags: Set<String>): Set<String> {
-        val allHierarchicalTags = mutableSetOf<String>()
-        for (tag in tags) {
-            val parts = tag.removePrefix("#").split('/')
-            for (i in 1..parts.size) {
-                allHierarchicalTags.add("#" + parts.take(i).joinToString("/"))
-            }
-        }
-        return allHierarchicalTags
-    }
+//    private fun getHierarchicalTags(tags: Set<String>): Set<String> {
+//        val allHierarchicalTags = mutableSetOf<String>()
+//        for (tag in tags) {
+//            val parts = tag.removePrefix("#").split('/')
+//            for (i in 1..parts.size) {
+//                allHierarchicalTags.add("#" + parts.take(i).joinToString("/"))
+//            }
+//        }
+//        return allHierarchicalTags
+//    }
 
     private fun getTagDocId(userId: String, tagName: String): String {
         val safeTagName = tagName.substring(1).replace('/', '.')

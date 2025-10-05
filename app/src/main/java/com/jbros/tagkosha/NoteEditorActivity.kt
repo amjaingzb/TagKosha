@@ -95,9 +95,9 @@ class NoteEditorActivity : AppCompatActivity() {
         batch.delete(noteRef)
 
         // 2. Schedule the counter decrements
-        val tagsToDecrement = getHierarchicalTags(note.tags.toSet())
-        tagsToDecrement.forEach { tagName ->
-            val tagDocId = getTagDocId(currentUser.uid, tagName)
+        // --- SIMPLIFIED: Decrement only the note's exact tags ---
+        note.tags.forEach { tagName ->
+            val tagDocId = getTagDocId(firebaseAuth.currentUser!!.uid, tagName)
             val tagRef = firestore.collection("tags").document(tagDocId)
             batch.update(tagRef, "count", FieldValue.increment(-1))
         }
@@ -161,30 +161,23 @@ class NoteEditorActivity : AppCompatActivity() {
                 firestore.collection("notes").document(existingNote!!.id!!) // Get ref for existing
             }
 
-            // --- 1. Handle Tag Counter Increments ---
-            val tagsToIncrement = getHierarchicalTags(tagsToAdd)
-            tagsToIncrement.forEach { tagName ->
+            // --- 1. SIMPLIFIED: Handle Tag Increments ---
+            // We no longer call getHierarchicalTags. We only increment the actual tags added.
+            tagsToAdd.forEach { tagName ->
                 val tagRef = firestore.collection("tags").document(getTagDocId(userId, tagName))
                 val tagDoc = transaction.get(tagRef)
                 if (tagDoc.exists()) {
                     transaction.update(tagRef, "count", FieldValue.increment(1))
                 } else {
-                    // This is a brand new tag, create it with count = 1
-                    val newTagData = mapOf(
-                        "userId" to userId,
-                        "tagName" to tagName,
-                        "count" to 1
-                    )
+                    val newTagData = mapOf("userId" to userId, "tagName" to tagName, "count" to 1)
                     transaction.set(tagRef, newTagData)
                 }
             }
 
-            // --- 2. Handle Tag Counter Decrements ---
-            val tagsToDecrement = getHierarchicalTags(tagsToRemove)
-            tagsToDecrement.forEach { tagName ->
+            // --- 2. SIMPLIFIED: Handle Tag Decrements ---
+            // We no longer call getHierarchicalTags. We only decrement the actual tags removed.
+            tagsToRemove.forEach { tagName ->
                 val tagRef = firestore.collection("tags").document(getTagDocId(userId, tagName))
-                // We only decrement. If this leads to a count of 0 or less,
-                // a future cleanup function could remove it, but for now, we just decrement.
                 transaction.update(tagRef, "count", FieldValue.increment(-1))
             }
 
@@ -225,16 +218,16 @@ class NoteEditorActivity : AppCompatActivity() {
      * Takes a set of tags (e.g., {"#work/projA", "#home"}) and returns a set
      * containing all tags and their parents (e.g., {"#work", "#work/projA", "#home"}).
      */
-    private fun getHierarchicalTags(tags: Set<String>): Set<String> {
-        val allHierarchicalTags = mutableSetOf<String>()
-        for (tag in tags) {
-            val parts = tag.removePrefix("#").split('/')
-            for (i in 1..parts.size) {
-                allHierarchicalTags.add("#" + parts.take(i).joinToString("/"))
-            }
-        }
-        return allHierarchicalTags
-    }
+//    private fun getHierarchicalTags(tags: Set<String>): Set<String> {
+//        val allHierarchicalTags = mutableSetOf<String>()
+//        for (tag in tags) {
+//            val parts = tag.removePrefix("#").split('/')
+//            for (i in 1..parts.size) {
+//                allHierarchicalTags.add("#" + parts.take(i).joinToString("/"))
+//            }
+//        }
+//        return allHierarchicalTags
+//    }
 
     /**
      * Creates a Firestore-safe document ID for a given tag.

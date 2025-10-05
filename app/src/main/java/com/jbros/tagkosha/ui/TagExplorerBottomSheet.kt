@@ -76,6 +76,8 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
             Timber.d("Reparsing tag tree. Tag object count: %d", tags.size)
             // Pass the new list to the parser
             rootNodes = parseFlatListToTree(tags)
+            // --- NEW: Calculate the inclusive counts for the entire tree ---
+            calculateInclusiveCounts(rootNodes)
             flatTagList = createFlatListFromTree(rootNodes)
             // Re-apply filter if search is active, otherwise show the tree
             filterTags(binding.searchViewTags.query.toString())
@@ -129,6 +131,7 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
             // The display name for the tree now also gets a '#' prefix
             val displayName = "#" + parts.last()
 
+            // The node is created with its "Simple Count" from the database
             val node = TagNode(
                 fullName = tag.name,
                 displayName = displayName,
@@ -146,6 +149,29 @@ class TagExplorerBottomSheet : BottomSheetDialogFragment() {
         return roots
     }
     
+    // --- THIS IS THE NEW HIERARCHICAL CALCULATION LOGIC ---
+    /**
+     * Recursively traverses the tag tree and calculates the inclusive count for each node.
+     * The inclusive count is the node's own simple count plus the inclusive counts of all its children.
+     * @param nodes The list of nodes to process (starts with the root nodes).
+     * @return The sum of the inclusive counts of the processed nodes.
+     */
+    private fun calculateInclusiveCounts(nodes: List<TagNode>): Long {
+        var totalCount: Long = 0
+        for (node in nodes) {
+            // If the node is a leaf, its inclusive count is just its simple count.
+            // Otherwise, its inclusive count is its simple count + the sum from its children.
+            val childCount = if (node.children.isNotEmpty()) {
+                calculateInclusiveCounts(node.children)
+            } else {
+                0L
+            }
+            node.count += childCount // Update the node's count to be the inclusive count
+            totalCount += node.count
+        }
+        return totalCount
+    }
+
     private fun createFlatListFromTree(nodes: List<TagNode>): MutableList<TagNode> {
         val flatList = mutableListOf<TagNode>()
         fun addToList(nodesToAdd: List<TagNode>) {

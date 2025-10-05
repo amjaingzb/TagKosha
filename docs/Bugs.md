@@ -4,6 +4,7 @@
 4.Active filter list - #work , #work/kitchen ... ignore #work... 
 5. Code refactoring must : deleteNote is duplicate in both NoteEditorActivity , MainActivity
 6. Improve edit note - suggest tags
+7. when i click on the tag in filter list , there is checkbox coming... what can i use that for ?
 
 
 

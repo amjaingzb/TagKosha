@@ -451,5 +451,11 @@ Recommendation: Do not implement the lastUpdatedByDeviceId optimization. The cos
 
 The simpler design is the better design here. It is more predictable, easier to debug, and fundamentally more reliable.
 
-###TAG-CONVERSATION-2025-10-05 12:47:52
 
+###TAG-CONVERSATION-2025-10-05 18:47:33
+
+The New, Better Design: Simple Counts on the Server, Smart Counts on the UI
+Instead of trying to maintain complex hierarchical counts in the database (which is proving tricky), we will adopt a simpler, more powerful model:
+On the Server (Firestore): The count for a tag will mean one simple thing: "The number of notes that have this exact tag written on them." This is a "Simple Count."
+On the Client (The App): When we display the tag tree, we will calculate the "Inclusive Count" on the fly. The count for #work will be its own Simple Count plus the Inclusive Counts of all its children.
+This is the best of both worlds: our database stays simple and easy to verify, and our UI shows the intelligent, hierarchical count that the user expects.
