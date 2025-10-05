@@ -1,7 +1,11 @@
 package com.jbros.tagkosha
 
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
+import android.util.TypedValue
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
@@ -37,6 +41,8 @@ class NoteEditorActivity : AppCompatActivity() {
 
         setupToolbar()
         populateUI()
+        setupTagInputListener()
+
 
         binding.btnSaveNote.setOnClickListener {
             saveNote()
@@ -123,6 +129,32 @@ class NoteEditorActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Adds a TextWatcher to the tag input field to provide immediate visual
+     * feedback if the user types the reserved "#untagged" tag.
+     */
+    private fun setupTagInputListener() {
+        // First, get the default text color from the current theme to handle both light/dark modes
+        val typedValue = TypedValue()
+        theme.resolveAttribute(android.R.attr.textColorPrimary, typedValue, true)
+        val defaultTextColor = typedValue.data
+
+        binding.etNoteTags.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+
+            override fun afterTextChanged(s: Editable?) {
+                if (s != null && s.toString().contains("#untagged")) {
+                    // If the reserved tag is present, change the text color to red
+                    binding.etNoteTags.setTextColor(Color.RED)
+                    Toast.makeText(this@NoteEditorActivity, "#untagged is a reserved tag", Toast.LENGTH_SHORT).show()
+                } else {
+                    // Otherwise, ensure the text color is the default
+                    binding.etNoteTags.setTextColor(defaultTextColor)
+                }
+            }
+        })
+    }
     private fun saveNote() {
         val title = binding.etNoteTitle.text.toString().trim()
         val content = binding.etNoteContent.text.toString().trim()
@@ -140,17 +172,28 @@ class NoteEditorActivity : AppCompatActivity() {
             return
         }
 
-        // --- Tag Parsing Logic (Unchanged) ---
+        // --- Step 1: Parse all tags the user typed ---
         val tagRegex = Regex("#[\\w-/]+")
-        val newTags = tagRegex.findAll(tagsInput).map { it.value }.toSet()
-        Timber.d("Parsed new tags: %s", newTags)
+        val userTypedTags = tagRegex.findAll(tagsInput).map { it.value }.toSet()
 
-        // --- Calculate Tag Differences ---
+        // --- Step 2: Apply the #untagged logic ---
+        // First, explicitly remove the #untagged tag if the user typed it. The system will manage it.
+        val cleanUserTags = userTypedTags - "#untagged"
+
+        // Now, determine the final set of tags for the note.
+        val finalTags = if (cleanUserTags.isEmpty()) {
+            // If there are no other tags, the note must be marked as #untagged.
+            setOf("#untagged")
+        } else {
+            // Otherwise, use the user's tags.
+            cleanUserTags
+        }
+
+        // --- Step 3: Calculate the difference for the transaction ---
         val originalTags = existingNote?.tags?.toSet() ?: emptySet()
-        val tagsToAdd = newTags - originalTags
-        val tagsToRemove = originalTags - newTags
-        Timber.d("Tags to add: %s", tagsToAdd)
-        Timber.d("Tags to remove: %s", tagsToRemove)
+        val tagsToAdd = finalTags - originalTags
+        val tagsToRemove = originalTags - finalTags
+        Timber.d("Final tags: %s, Tags to add: %s, Tags to remove: %s", finalTags, tagsToAdd, tagsToRemove)
 
         // --- All database operations now happen inside a transaction ---
         firestore.runTransaction { transaction ->
@@ -195,13 +238,13 @@ class NoteEditorActivity : AppCompatActivity() {
             if (existingNote == null) {
                 val newNote = Note(
                     id = noteRef.id, userId = userId, title = title, content = content,
-                    tags = newTags.toList(), createdAt = Date(), updatedAt = Date()
+                    tags = finalTags.toList(), createdAt = Date(), updatedAt = Date()
                 )
                 transaction.set(noteRef, newNote)
             } else {
                 val updatedData = mapOf(
                     "title" to title, "content" to content,
-                    "tags" to newTags.toList(), "updatedAt" to Date()
+                    "tags" to finalTags.toList(), "updatedAt" to Date()
                 )
                 transaction.update(noteRef, updatedData)
             }
@@ -216,20 +259,6 @@ class NoteEditorActivity : AppCompatActivity() {
 
     }
 
-    /**
-     * Takes a set of tags (e.g., {"#work/projA", "#home"}) and returns a set
-     * containing all tags and their parents (e.g., {"#work", "#work/projA", "#home"}).
-     */
-//    private fun getHierarchicalTags(tags: Set<String>): Set<String> {
-//        val allHierarchicalTags = mutableSetOf<String>()
-//        for (tag in tags) {
-//            val parts = tag.removePrefix("#").split('/')
-//            for (i in 1..parts.size) {
-//                allHierarchicalTags.add("#" + parts.take(i).joinToString("/"))
-//            }
-//        }
-//        return allHierarchicalTags
-//    }
 
     /**
      * Creates a Firestore-safe document ID for a given tag.
@@ -256,4 +285,20 @@ class NoteEditorActivity : AppCompatActivity() {
 //                }
 //        }
 //    }
+
+    /**
+     * Takes a set of tags (e.g., {"#work/projA", "#home"}) and returns a set
+     * containing all tags and their parents (e.g., {"#work", "#work/projA", "#home"}).
+     */
+//    private fun getHierarchicalTags(tags: Set<String>): Set<String> {
+//        val allHierarchicalTags = mutableSetOf<String>()
+//        for (tag in tags) {
+//            val parts = tag.removePrefix("#").split('/')
+//            for (i in 1..parts.size) {
+//                allHierarchicalTags.add("#" + parts.take(i).joinToString("/"))
+//            }
+//        }
+//        return allHierarchicalTags
+//    }
+
 }
