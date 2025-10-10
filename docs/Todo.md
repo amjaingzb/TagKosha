@@ -5,7 +5,6 @@ Bullet points
 5. desktop app 
 6. free tier users - 1 device - sqlite - personal space to backup db .. or maybe tagKoshaLite.. or license based
 7. implement storage limits - display free %age remaining
-8. Grammar display as a tool tip and some detailed help also ... also whatever is error highlight that like a red line in spell checks 
 9. (cost in terms of firebase . I am assuming if the data is fully cached then this search will be fully local ).. onSnapShot listener should help to maintain data updates..
 10. Whatever we are doing for tags will we not have to do that same for notes also ? (I mean why should we fetch the notes without checking in local cache) Also should we start listener for the currently active note and stop that when a new note is active. that will allow note to be synced as well ..
 12. Borrow release version from workkonds, about screen from rkm attendance app , also borrow the concept of rendering test distributions of app useless by controlling the base version in meta data of firebase db (we had this concept in wordkons)
@@ -16,9 +15,12 @@ Bullet points
 15 . Handling of Zero-Count Tags: We have not yet implemented a mechanism to clean up and delete a tag document from Firestore when its count falls to zero. Currently, these tags will remain in the database with a count of 0, which is harmless but not ideal for long-term data hygiene.
 16. cloud function to deal with counter
 17. majorly enhance a new note or edit note to support html or rich edits , pasting of url , pasting of clipboard image data , clipboard url data ... firestore 5gb space 
+18. Hanging UI over a period of time ... is firebase listener leaks ... leakCanary anyways is a good idea 
+19. Optimize firebase queries - notes , tags , counts . Put some logs to determine if the app is really picking things from local or is it fetching from cloud . 
 
 
 =========================DONE===================================
 4. Show available tags like ankit was showing with theor count in bracket
 11.. in tag broswer - sorted listing , count of notes as well as alphabet as well as tree 
 2. Add a #untagged to every note without a tag
+8. Grammar display as a tool tip and some detailed help also ... also whatever is error highlight that like a red line in spell checks 
